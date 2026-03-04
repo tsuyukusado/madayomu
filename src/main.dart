@@ -172,10 +172,19 @@ void main() async {
                 if (span is pw.TextSpan) {
                   // TextSpanを文字単位のTextウィジェットに分解し、Wrapが正しく改行できるようにする
                   final text = span.text ?? '';
-                  return text.runes.map((rune) => pw.Text(
-                        String.fromCharCode(rune),
-                        style: span.style,
-                      ));
+                  return text.runes.map((rune) {
+                    if (rune == 0x3000) {
+                      // 全角スペースの場合はフォントサイズ分の空きを作る
+                      return pw.SizedBox(width: fontSize, height: fontSize);
+                    } else if (rune == 0x0020 || rune == 0x0009) {
+                      // 半角スペース・タブの場合は半分の幅
+                      return pw.SizedBox(width: fontSize * 0.5, height: fontSize);
+                    }
+                    return pw.Text(
+                      String.fromCharCode(rune),
+                      style: span.style,
+                    );
+                  });
                 } else if (span is pw.WidgetSpan) {
                   // WidgetSpanの場合はそのchild（Stack）をそのままリストに入れる
                   return [span.child];
