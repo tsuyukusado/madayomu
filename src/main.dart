@@ -25,6 +25,19 @@ void main() async {
             return pw.SizedBox(height: fontSize);
           }
 
+          // 見出し行の検出 (# で始まる行)
+          final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
+          if (headerMatch != null) {
+            final text = headerMatch.group(2)!;
+            return pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 10.0, top: 5.0), // 見出しの上下に少し余白を入れる
+              child: pw.Text(
+                text,
+                style: pw.TextStyle(font: ttf, fontSize: fontSize * 2), // フォントサイズを倍に
+              ),
+            );
+          }
+
           // 行頭のあらゆる空白文字（全角・半角・タブ）を検出
           final match = RegExp(r'^([\s\u3000]+)').firstMatch(line);
           if (match != null) {
