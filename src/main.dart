@@ -151,6 +151,11 @@ void main() async {
             return pw.SizedBox(height: fontSize + lineSpacing);
           }
 
+          // 水平線の検出 (---)
+          if (RegExp(r'^---+$').hasMatch(line.trim())) {
+            return pw.Divider();
+          }
+
           // 見出し行の検出 (# で始まる行)
           final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
           if (headerMatch != null) {
