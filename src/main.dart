@@ -221,7 +221,9 @@ void main() async {
                     if (span.style?.font == codeTtf) {
                       return pw.Container(
                         // フォントのベースラインが異なるため、上部にマージンを追加して位置を下げる
-                        margin: const pw.EdgeInsets.only(top: 3.0),
+                        margin: const pw.EdgeInsets.only(top: 2.0),
+                        // 背景を文字の外側に広げる（上下2px、左右1px）
+                        padding: const pw.EdgeInsets.symmetric(vertical: 2.0, horizontal: 1.0),
                         color: PdfColors.black,
                         child: charWidget,
                       );
