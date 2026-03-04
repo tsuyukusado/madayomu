@@ -6,4 +6,4 @@ environment:
   sdk: ^3.0.0
 
 dependencies:
-  pdf: ^3.10.0
+  pdf: ^3.11.3
