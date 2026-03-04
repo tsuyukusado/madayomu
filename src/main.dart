@@ -205,12 +205,16 @@ void main() async {
             // 見出し行の検出 (# で始まる行)
             final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
             if (headerMatch != null) {
+              final hashes = headerMatch.group(1)!;
               final text = headerMatch.group(2)!;
+              // ## の場合は1.5倍、それ以外は2倍
+              final headerFontSize = hashes.length == 2 ? fontSize * 1.5 : fontSize * 2;
+
               widgets.add(pw.Container(
                 margin: const pw.EdgeInsets.only(bottom: 10.0, top: 5.0), // 見出しの上下に少し余白を入れる
                 child: pw.Text(
                   text,
-                  style: pw.TextStyle(font: gothicTtf, fontSize: fontSize * 2), // フォントサイズを倍に
+                  style: pw.TextStyle(font: gothicTtf, fontSize: headerFontSize),
                 ),
               ));
               continue;
