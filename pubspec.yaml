@@ -1,0 +1,9 @@
+name: madayomu
+description: A PDF generation project.
+version: 1.0.0
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  pdf: ^3.10.0
