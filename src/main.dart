@@ -41,12 +41,11 @@ void main() async {
 
           // 行頭のあらゆる空白文字（全角・半角・タブ）を検出
           final match = RegExp(r'^([\s\u3000]+)').firstMatch(line);
-          String indentString = '';
+          double indentWidth = 0.0;
           String textContent = line;
 
           if (match != null) {
             final spaces = match.group(1)!;
-            double indentWidth = 0.0;
             // 空白の種類に応じて幅を計算
             for (final codePoint in spaces.runes) {
               if (codePoint == 0x3000) { // 全角スペース
@@ -56,19 +55,15 @@ void main() async {
               }
             }
             textContent = line.substring(match.end);
-            // アイの提案：Em Space (U+2003) を使う
-            final spaceCount = (indentWidth / fontSize).round() * 5;
-            indentString = '\u2003' * spaceCount;
           }
 
           // ルビの解析と適用
           final List<pw.InlineSpan> spans = [];
           
           // インデントがある場合は先頭に追加
-          if (indentString.isNotEmpty) {
-            spans.add(pw.TextSpan(
-              text: indentString,
-              style: pw.TextStyle(font: ttf, fontSize: fontSize, lineSpacing: lineSpacing),
+          if (indentWidth > 0) {
+            spans.add(pw.WidgetSpan(
+              child: pw.SizedBox(width: indentWidth, height: fontSize),
             ));
           }
 
@@ -79,7 +74,7 @@ void main() async {
             if (rubyMatch.start > lastIndex) {
               spans.add(pw.TextSpan(
                 text: textContent.substring(lastIndex, rubyMatch.start),
-                style: pw.TextStyle(font: ttf, fontSize: fontSize, lineSpacing: lineSpacing),
+                style: pw.TextStyle(font: ttf, fontSize: fontSize),
               ));
             }
 
@@ -154,14 +149,29 @@ void main() async {
           if (lastIndex < textContent.length) {
             spans.add(pw.TextSpan(
               text: textContent.substring(lastIndex),
-              style: pw.TextStyle(font: ttf, fontSize: fontSize, lineSpacing: lineSpacing),
+              style: pw.TextStyle(font: ttf, fontSize: fontSize),
             ));
           }
 
           return pw.Container(
             margin: const pw.EdgeInsets.only(bottom: lineSpacing),
-            child: pw.RichText(
-              text: pw.TextSpan(children: spans),
+            width: double.infinity,
+            child: pw.Wrap(
+              runSpacing: lineSpacing,
+              children: spans.expand<pw.Widget>((span) {
+                if (span is pw.TextSpan) {
+                  // TextSpanを文字単位のTextウィジェットに分解し、Wrapが正しく改行できるようにする
+                  final text = span.text ?? '';
+                  return text.runes.map((rune) => pw.Text(
+                        String.fromCharCode(rune),
+                        style: span.style,
+                      ));
+                } else if (span is pw.WidgetSpan) {
+                  // WidgetSpanの場合はそのchild（Stack）をそのままリストに入れる
+                  return [span.child];
+                }
+                return <pw.Widget>[];
+              }).toList(),
             ),
           );
         }).toList(),
