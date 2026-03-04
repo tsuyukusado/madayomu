@@ -11,8 +11,18 @@ void main() async {
 
   const fontSize = 12.0;
   const lineSpacing = 4.0; // 行間を広げる設定（フォントサイズの約0.6倍）
-  final inputFile = File('novel/00_tsukuritai.md');
-  final content = await inputFile.readAsString();
+
+  final directory = Directory('novel');
+  final files = directory.listSync().whereType<File>().where((f) => f.path.endsWith('.md')).toList();
+  files.sort((a, b) => a.path.compareTo(b.path));
+
+  final buffer = StringBuffer();
+  for (final file in files) {
+    buffer.write(await file.readAsString());
+    buffer.writeln();
+  }
+  final content = buffer.toString();
+
   final sections = content.split('===page===');
 
   for (final section in sections) {
