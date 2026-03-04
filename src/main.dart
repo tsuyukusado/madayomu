@@ -167,7 +167,7 @@ void main() async {
                   ),
                   child: pw.Text(
                     codeBuffer.toString().trimRight(),
-                    style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
+                    style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white, lineSpacing: lineSpacing),
                   ),
                 ));
                 codeBuffer.clear();
