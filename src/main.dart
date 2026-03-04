@@ -145,117 +145,159 @@ void main() async {
     pdf.addPage(
       pw.MultiPage(
         theme: pw.ThemeData.withFont(base: ttf),
-        build: (context) => section.split(RegExp(r'\r?\n')).map((line) {
-          // 空行の場合は、1行分のスペースを空ける
-          if (line.isEmpty) {
-            return pw.SizedBox(height: fontSize + lineSpacing);
-          }
+        build: (context) {
+          final lines = section.split(RegExp(r'\r?\n'));
+          final widgets = <pw.Widget>[];
+          bool inCodeBlock = false;
+          final codeBuffer = StringBuffer();
 
-          // 水平線の検出 (---)
-          if (RegExp(r'^---+$').hasMatch(line.trim())) {
-            return pw.Divider();
-          }
-
-          // 見出し行の検出 (# で始まる行)
-          final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
-          if (headerMatch != null) {
-            final text = headerMatch.group(2)!;
-            return pw.Container(
-              margin: const pw.EdgeInsets.only(bottom: 10.0, top: 5.0), // 見出しの上下に少し余白を入れる
-              child: pw.Text(
-                text,
-                style: pw.TextStyle(font: gothicTtf, fontSize: fontSize * 2), // フォントサイズを倍に
-              ),
-            );
-          }
-
-          // 行頭のあらゆる空白文字（全角・半角・タブ）を検出
-          final match = RegExp(r'^([\s\u3000]+)').firstMatch(line);
-          double indentWidth = 0.0;
-          String textContent = line;
-
-          if (match != null) {
-            final spaces = match.group(1)!;
-            // 空白の種類に応じて幅を計算
-            for (final codePoint in spaces.runes) {
-              if (codePoint == 0x3000) { // 全角スペース
-                indentWidth += fontSize;
-              } else { // 半角スペースなど
-                indentWidth += fontSize * 0.5; // 半角スペースは半分の幅として計算
+          for (final line in lines) {
+            // コードブロックの判定 (```)
+            if (line.trim().startsWith('```')) {
+              if (inCodeBlock) {
+                // コードブロック終了
+                inCodeBlock = false;
+                widgets.add(pw.Container(
+                  width: double.infinity,
+                  margin: const pw.EdgeInsets.only(bottom: lineSpacing),
+                  padding: const pw.EdgeInsets.all(4.0),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.black,
+                    borderRadius: pw.BorderRadius.circular(4.0),
+                  ),
+                  child: pw.Text(
+                    codeBuffer.toString().trimRight(),
+                    style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
+                  ),
+                ));
+                codeBuffer.clear();
+              } else {
+                // コードブロック開始
+                inCodeBlock = true;
               }
+              continue;
             }
-            textContent = line.substring(match.end);
-          }
 
-          // ルビの解析と適用
-          final List<pw.InlineSpan> spans = [];
-          
-          // インデントがある場合は先頭に追加
-          if (indentWidth > 0) {
-            spans.add(pw.WidgetSpan(
-              child: pw.SizedBox(width: indentWidth, height: fontSize),
+            if (inCodeBlock) {
+              codeBuffer.writeln(line);
+              continue;
+            }
+
+            // 空行の場合は、1行分のスペースを空ける
+            if (line.isEmpty) {
+              widgets.add(pw.SizedBox(height: fontSize + lineSpacing));
+              continue;
+            }
+
+            // 水平線の検出 (---)
+            if (RegExp(r'^---+$').hasMatch(line.trim())) {
+              widgets.add(pw.Divider());
+              continue;
+            }
+
+            // 見出し行の検出 (# で始まる行)
+            final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
+            if (headerMatch != null) {
+              final text = headerMatch.group(2)!;
+              widgets.add(pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 10.0, top: 5.0), // 見出しの上下に少し余白を入れる
+                child: pw.Text(
+                  text,
+                  style: pw.TextStyle(font: gothicTtf, fontSize: fontSize * 2), // フォントサイズを倍に
+                ),
+              ));
+              continue;
+            }
+
+            // 行頭のあらゆる空白文字（全角・半角・タブ）を検出
+            final match = RegExp(r'^([\s\u3000]+)').firstMatch(line);
+            double indentWidth = 0.0;
+            String textContent = line;
+
+            if (match != null) {
+              final spaces = match.group(1)!;
+              // 空白の種類に応じて幅を計算
+              for (final codePoint in spaces.runes) {
+                if (codePoint == 0x3000) { // 全角スペース
+                  indentWidth += fontSize;
+                } else { // 半角スペースなど
+                  indentWidth += fontSize * 0.5; // 半角スペースは半分の幅として計算
+                }
+              }
+              textContent = line.substring(match.end);
+            }
+
+            // ルビの解析と適用
+            final List<pw.InlineSpan> spans = [];
+            
+            // インデントがある場合は先頭に追加
+            if (indentWidth > 0) {
+              spans.add(pw.WidgetSpan(
+                child: pw.SizedBox(width: indentWidth, height: fontSize),
+              ));
+            }
+
+            spans.addAll(parseRichText(textContent));
+
+            widgets.add(pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: lineSpacing),
+              width: double.infinity,
+              child: pw.Wrap(
+                runSpacing: lineSpacing,
+                children: spans.expand<pw.Widget>((span) {
+                  if (span is pw.TextSpan) {
+                    // TextSpanを文字単位のTextウィジェットに分解し、Wrapが正しく改行できるようにする
+                    final text = span.text ?? '';
+                    final runes = text.runes.toList();
+                    return List.generate(runes.length, (index) {
+                      final rune = runes[index];
+                      if (rune == 0x3000) {
+                        // 全角スペースの場合はフォントサイズ分の空きを作る
+                        return pw.SizedBox(width: fontSize, height: fontSize);
+                      } else if (rune == 0x0020 || rune == 0x0009) {
+                        // 半角スペース・タブの場合は半分の幅
+                        return pw.SizedBox(width: fontSize * 0.5, height: fontSize);
+                      }
+
+                      final charWidget = pw.Text(
+                        String.fromCharCode(rune),
+                        style: span.style,
+                      );
+
+                      // インラインコード（コード用フォント）の場合は背景を黒にする
+                      if (span.style?.font == codeTtf) {
+                        const radius = pw.Radius.circular(4.0);
+                        final isFirst = index == 0;
+                        final isLast = index == runes.length - 1;
+
+                        return pw.Container(
+                          // フォントのベースラインが異なるため、上部にマージンを追加して位置を下げる
+                          margin: const pw.EdgeInsets.only(top: 2.0),
+                          // 背景を文字の外側に広げる（上下2px、左右1px）
+                          padding: const pw.EdgeInsets.symmetric(vertical: 2.0, horizontal: 1.0),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.black,
+                            borderRadius: pw.BorderRadius.horizontal(
+                              left: isFirst ? radius : pw.Radius.zero,
+                              right: isLast ? radius : pw.Radius.zero,
+                            ),
+                          ),
+                          child: charWidget,
+                        );
+                      }
+                      return charWidget;
+                    });
+                  } else if (span is pw.WidgetSpan) {
+                    // WidgetSpanの場合はそのchild（Stack）をそのままリストに入れる
+                    return [span.child];
+                  }
+                  return <pw.Widget>[];
+                }).toList(),
+              ),
             ));
           }
-
-          spans.addAll(parseRichText(textContent));
-
-          return pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: lineSpacing),
-            width: double.infinity,
-            child: pw.Wrap(
-              runSpacing: lineSpacing,
-              children: spans.expand<pw.Widget>((span) {
-                if (span is pw.TextSpan) {
-                  // TextSpanを文字単位のTextウィジェットに分解し、Wrapが正しく改行できるようにする
-                  final text = span.text ?? '';
-                  final runes = text.runes.toList();
-                  return List.generate(runes.length, (index) {
-                    final rune = runes[index];
-                    if (rune == 0x3000) {
-                      // 全角スペースの場合はフォントサイズ分の空きを作る
-                      return pw.SizedBox(width: fontSize, height: fontSize);
-                    } else if (rune == 0x0020 || rune == 0x0009) {
-                      // 半角スペース・タブの場合は半分の幅
-                      return pw.SizedBox(width: fontSize * 0.5, height: fontSize);
-                    }
-
-                    final charWidget = pw.Text(
-                      String.fromCharCode(rune),
-                      style: span.style,
-                    );
-
-                    // インラインコード（コード用フォント）の場合は背景を黒にする
-                    if (span.style?.font == codeTtf) {
-                      const radius = pw.Radius.circular(4.0);
-                      final isFirst = index == 0;
-                      final isLast = index == runes.length - 1;
-
-                      return pw.Container(
-                        // フォントのベースラインが異なるため、上部にマージンを追加して位置を下げる
-                        margin: const pw.EdgeInsets.only(top: 2.0),
-                        // 背景を文字の外側に広げる（上下2px、左右1px）
-                        padding: const pw.EdgeInsets.symmetric(vertical: 2.0, horizontal: 1.0),
-                        decoration: pw.BoxDecoration(
-                          color: PdfColors.black,
-                          borderRadius: pw.BorderRadius.horizontal(
-                            left: isFirst ? radius : pw.Radius.zero,
-                            right: isLast ? radius : pw.Radius.zero,
-                          ),
-                        ),
-                        child: charWidget,
-                      );
-                    }
-                    return charWidget;
-                  });
-                } else if (span is pw.WidgetSpan) {
-                  // WidgetSpanの場合はそのchild（Stack）をそのままリストに入れる
-                  return [span.child];
-                }
-                return <pw.Widget>[];
-              }).toList(),
-            ),
-          );
-        }).toList(),
+          return widgets;
+        },
       ),
     );
   }
