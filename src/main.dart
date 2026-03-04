@@ -19,9 +19,12 @@ void main() async {
     pdf.addPage(
       pw.MultiPage(
         theme: pw.ThemeData.withFont(base: ttf),
-        build: (context) => section.split(RegExp(r'\r?\n'))
-            .where((line) => line.isNotEmpty) // 空行を除去して、無駄な空白処理を防ぐ
-            .map((line) {
+        build: (context) => section.split(RegExp(r'\r?\n')).map((line) {
+          // 空行の場合は、1行分のスペースを空ける
+          if (line.isEmpty) {
+            return pw.SizedBox(height: fontSize);
+          }
+
           // 行頭のあらゆる空白文字（全角・半角・タブ）を検出
           final match = RegExp(r'^([\s\u3000]+)').firstMatch(line);
           if (match != null) {
