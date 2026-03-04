@@ -87,16 +87,19 @@ void main() async {
 
             spans.add(
               pw.WidgetSpan(
-                // baselineを負の値に設定して、ウィジェット全体を下げる。
-                // 0だとウィジェットの下端がベースラインに来てしまい、漢字が浮いて見えるため。
+                // 漢字の位置を合わせるためにbaselineを戻す
                 baseline: -fontSize * 0.29,
                 child: pw.Column(
                   mainAxisSize: pw.MainAxisSize.min,
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text(
-                      ruby,
-                      style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5), // ルビは半分のサイズ
+                    // ルビのみを下にずらすためにTransform.translateを使用
+                    pw.Transform.translate(
+                      offset: const PdfPoint(0, -4), // ルビを2ポイント下に移動
+                      child: pw.Text(
+                        ruby,
+                        style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
+                      ),
                     ),
                     pw.Text(
                       kanji,
