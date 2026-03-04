@@ -2,6 +2,13 @@ import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+// 禁則処理のために文字とメタデータを保持するクラス
+class BuiltItem {
+  final pw.Widget widget;
+  final bool isKinsoku;
+  BuiltItem(this.widget, {this.isKinsoku = false});
+}
+
 void main() async {
   final pdf = pw.Document();
 
@@ -239,60 +246,79 @@ void main() async {
 
             spans.addAll(parseRichText(textContent));
 
+            // 禁則文字セット（行頭に来てはいけない文字）
+            const kinsokuChars = {'、', '。', 'っ', 'ゃ', 'ゅ', 'ょ', 'ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ', 'ゎ', 'ヵ', 'ヶ', 'ー', '…', '！', '？', '!', '?', ')', '）', ']', '］', '}', '｝', '」', '』', ',', '.'};
+
+            final builtItems = <BuiltItem>[];
+
+            // 1. すべてのSpanを文字単位のBuiltItemリストに展開
+            for (final span in spans) {
+              if (span is pw.TextSpan) {
+                final text = span.text ?? '';
+                final runes = text.runes.toList();
+                for (int i = 0; i < runes.length; i++) {
+                  final rune = runes[i];
+                  final charStr = String.fromCharCode(rune);
+
+                  if (rune == 0x3000) {
+                    builtItems.add(BuiltItem(pw.SizedBox(width: fontSize, height: fontSize)));
+                    continue;
+                  } else if (rune == 0x0020 || rune == 0x0009) {
+                    builtItems.add(BuiltItem(pw.SizedBox(width: fontSize * 0.5, height: fontSize)));
+                    continue;
+                  }
+
+                  pw.Widget charWidget = pw.Text(charStr, style: span.style);
+
+                  // インラインコードの装飾
+                  if (span.style?.font == codeTtf) {
+                    const radius = pw.Radius.circular(4.0);
+                    final isFirst = i == 0;
+                    final isLast = i == runes.length - 1;
+
+                    charWidget = pw.Container(
+                      margin: const pw.EdgeInsets.only(top: 2.0),
+                      padding: const pw.EdgeInsets.symmetric(vertical: 2.0, horizontal: 1.0),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.black,
+                        borderRadius: pw.BorderRadius.horizontal(
+                          left: isFirst ? radius : pw.Radius.zero,
+                          right: isLast ? radius : pw.Radius.zero,
+                        ),
+                      ),
+                      child: charWidget,
+                    );
+                  }
+
+                  builtItems.add(BuiltItem(charWidget, isKinsoku: kinsokuChars.contains(charStr)));
+                }
+              } else if (span is pw.WidgetSpan) {
+                builtItems.add(BuiltItem(span.child));
+              }
+            }
+
+            // 2. 禁則文字を直前の要素と結合して最終的なWidgetリストを作成
+            final finalWidgets = <pw.Widget>[];
+            for (final item in builtItems) {
+              if (item.isKinsoku && finalWidgets.isNotEmpty) {
+                // 禁則文字なら、直前のWidgetを取り出して結合する
+                final prev = finalWidgets.removeLast();
+                finalWidgets.add(pw.Row(
+                  mainAxisSize: pw.MainAxisSize.min,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [prev, item.widget],
+                ));
+              } else {
+                finalWidgets.add(item.widget);
+              }
+            }
+
             widgets.add(pw.Container(
               margin: const pw.EdgeInsets.only(bottom: lineSpacing),
               width: double.infinity,
               child: pw.Wrap(
                 runSpacing: lineSpacing,
-                children: spans.expand<pw.Widget>((span) {
-                  if (span is pw.TextSpan) {
-                    // TextSpanを文字単位のTextウィジェットに分解し、Wrapが正しく改行できるようにする
-                    final text = span.text ?? '';
-                    final runes = text.runes.toList();
-                    return List.generate(runes.length, (index) {
-                      final rune = runes[index];
-                      if (rune == 0x3000) {
-                        // 全角スペースの場合はフォントサイズ分の空きを作る
-                        return pw.SizedBox(width: fontSize, height: fontSize);
-                      } else if (rune == 0x0020 || rune == 0x0009) {
-                        // 半角スペース・タブの場合は半分の幅
-                        return pw.SizedBox(width: fontSize * 0.5, height: fontSize);
-                      }
-
-                      final charWidget = pw.Text(
-                        String.fromCharCode(rune),
-                        style: span.style,
-                      );
-
-                      // インラインコード（コード用フォント）の場合は背景を黒にする
-                      if (span.style?.font == codeTtf) {
-                        const radius = pw.Radius.circular(4.0);
-                        final isFirst = index == 0;
-                        final isLast = index == runes.length - 1;
-
-                        return pw.Container(
-                          // フォントのベースラインが異なるため、上部にマージンを追加して位置を下げる
-                          margin: const pw.EdgeInsets.only(top: 2.0),
-                          // 背景を文字の外側に広げる（上下2px、左右1px）
-                          padding: const pw.EdgeInsets.symmetric(vertical: 2.0, horizontal: 1.0),
-                          decoration: pw.BoxDecoration(
-                            color: PdfColors.black,
-                            borderRadius: pw.BorderRadius.horizontal(
-                              left: isFirst ? radius : pw.Radius.zero,
-                              right: isLast ? radius : pw.Radius.zero,
-                            ),
-                          ),
-                          child: charWidget,
-                        );
-                      }
-                      return charWidget;
-                    });
-                  } else if (span is pw.WidgetSpan) {
-                    // WidgetSpanの場合はそのchild（Stack）をそのままリストに入れる
-                    return [span.child];
-                  }
-                  return <pw.Widget>[];
-                }).toList(),
+                children: finalWidgets,
               ),
             ));
           }
