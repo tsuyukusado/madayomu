@@ -203,7 +203,9 @@ void main() async {
                 if (span is pw.TextSpan) {
                   // TextSpanを文字単位のTextウィジェットに分解し、Wrapが正しく改行できるようにする
                   final text = span.text ?? '';
-                  return text.runes.map((rune) {
+                  final runes = text.runes.toList();
+                  return List.generate(runes.length, (index) {
+                    final rune = runes[index];
                     if (rune == 0x3000) {
                       // 全角スペースの場合はフォントサイズ分の空きを作る
                       return pw.SizedBox(width: fontSize, height: fontSize);
@@ -219,12 +221,22 @@ void main() async {
 
                     // インラインコード（コード用フォント）の場合は背景を黒にする
                     if (span.style?.font == codeTtf) {
+                      const radius = pw.Radius.circular(4.0);
+                      final isFirst = index == 0;
+                      final isLast = index == runes.length - 1;
+
                       return pw.Container(
                         // フォントのベースラインが異なるため、上部にマージンを追加して位置を下げる
                         margin: const pw.EdgeInsets.only(top: 2.0),
                         // 背景を文字の外側に広げる（上下2px、左右1px）
                         padding: const pw.EdgeInsets.symmetric(vertical: 2.0, horizontal: 1.0),
-                        color: PdfColors.black,
+                        decoration: pw.BoxDecoration(
+                          color: PdfColors.black,
+                          borderRadius: pw.BorderRadius.horizontal(
+                            left: isFirst ? radius : pw.Radius.zero,
+                            right: isLast ? radius : pw.Radius.zero,
+                          ),
+                        ),
                         child: charWidget,
                       );
                     }
