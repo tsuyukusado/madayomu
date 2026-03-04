@@ -220,6 +220,8 @@ void main() async {
                     // インラインコード（コード用フォント）の場合は背景を黒にする
                     if (span.style?.font == codeTtf) {
                       return pw.Container(
+                        // フォントのベースラインが異なるため、上部にマージンを追加して位置を下げる
+                        margin: const pw.EdgeInsets.only(top: 3.0),
                         color: PdfColors.black,
                         child: charWidget,
                       );
