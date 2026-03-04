@@ -10,6 +10,7 @@ void main() async {
   final ttf = pw.Font.ttf(fontData.buffer.asByteData());
 
   const fontSize = 12.0;
+  const lineSpacing = 8.0; // 行間を広げる設定（フォントサイズの約0.6倍）
   final inputFile = File('novel/00_tsukuritai.md');
   final content = await inputFile.readAsString();
   final sections = content.split('===page===');
@@ -22,7 +23,7 @@ void main() async {
         build: (context) => section.split(RegExp(r'\r?\n')).map((line) {
           // 空行の場合は、1行分のスペースを空ける
           if (line.isEmpty) {
-            return pw.SizedBox(height: fontSize);
+            return pw.SizedBox(height: fontSize + lineSpacing);
           }
 
           // 見出し行の検出 (# で始まる行)
@@ -67,7 +68,7 @@ void main() async {
           if (indentString.isNotEmpty) {
             spans.add(pw.TextSpan(
               text: indentString,
-              style: pw.TextStyle(font: ttf, fontSize: fontSize),
+              style: pw.TextStyle(font: ttf, fontSize: fontSize, lineSpacing: lineSpacing),
             ));
           }
 
@@ -78,7 +79,7 @@ void main() async {
             if (rubyMatch.start > lastIndex) {
               spans.add(pw.TextSpan(
                 text: textContent.substring(lastIndex, rubyMatch.start),
-                style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                style: pw.TextStyle(font: ttf, fontSize: fontSize, lineSpacing: lineSpacing),
               ));
             }
 
@@ -87,23 +88,28 @@ void main() async {
 
             spans.add(
               pw.WidgetSpan(
-                // 漢字の位置を合わせるためにbaselineを戻す
-                baseline: -fontSize * 0.29,
-                child: pw.Column(
-                  mainAxisSize: pw.MainAxisSize.min,
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                // 漢字の位置を合わせるためにbaselineを調整
+                baseline: -fontSize * 0.25,
+                child: pw.Stack(
+                  overflow: pw.Overflow.visible, // 領域外（ルビ部分）が切り取られないように表示許可を与える
                   children: [
-                    // ルビのみを下にずらすためにTransform.translateを使用
-                    pw.Transform.translate(
-                      offset: const PdfPoint(0, -4), // ルビを2ポイント下に移動
-                      child: pw.Text(
-                        ruby,
-                        style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
-                      ),
-                    ),
+                    // 基準となる漢字（Stackのサイズはこの要素で決まる）
                     pw.Text(
                       kanji,
                       style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                    ),
+                    // ルビを絶対配置で上に置く
+                    // Stackを使うことで、WidgetSpanの高さ計算にルビが含まれなくなり、行間が広がるのを防ぐ
+                    pw.Positioned(
+                      top: -fontSize * 0.45, // 漢字の上に配置（値は微調整してください）
+                      left: 0,
+                      right: 0,
+                      child: pw.Center(
+                        child: pw.Text(
+                          ruby,
+                          style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -115,12 +121,12 @@ void main() async {
           if (lastIndex < textContent.length) {
             spans.add(pw.TextSpan(
               text: textContent.substring(lastIndex),
-              style: pw.TextStyle(font: ttf, fontSize: fontSize),
+              style: pw.TextStyle(font: ttf, fontSize: fontSize, lineSpacing: lineSpacing),
             ));
           }
 
           return pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 2.0),
+            margin: const pw.EdgeInsets.only(bottom: lineSpacing),
             child: pw.RichText(
               text: pw.TextSpan(children: spans),
             ),
