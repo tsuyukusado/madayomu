@@ -10,7 +10,7 @@ void main() async {
   final ttf = pw.Font.ttf(fontData.buffer.asByteData());
 
   const fontSize = 12.0;
-  const lineSpacing = 8.0; // 行間を広げる設定（フォントサイズの約0.6倍）
+  const lineSpacing = 4.0; // 行間を広げる設定（フォントサイズの約0.6倍）
   final inputFile = File('novel/00_tsukuritai.md');
   final content = await inputFile.readAsString();
   final sections = content.split('===page===');
@@ -86,35 +86,68 @@ void main() async {
             final kanji = rubyMatch.group(1)!;
             final ruby = rubyMatch.group(2)!;
 
-            spans.add(
-              pw.WidgetSpan(
-                // 漢字の位置を合わせるためにbaselineを調整
-                baseline: -fontSize * 0.25,
-                child: pw.Stack(
-                  overflow: pw.Overflow.visible, // 領域外（ルビ部分）が切り取られないように表示許可を与える
-                  children: [
-                    // 基準となる漢字（Stackのサイズはこの要素で決まる）
-                    pw.Text(
-                      kanji,
-                      style: pw.TextStyle(font: ttf, fontSize: fontSize),
+            if (ruby == '圏') {
+              // 傍点（圏点）の処理：1文字ずつ分解して「﹅」を打つ
+              for (final char in kanji.runes) {
+                final charStr = String.fromCharCode(char);
+                spans.add(
+                  pw.WidgetSpan(
+                    baseline: -fontSize * 0.25,
+                    child: pw.Stack(
+                      overflow: pw.Overflow.visible,
+                      children: [
+                        pw.Text(
+                          charStr,
+                          style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                        ),
+                        pw.Positioned(
+                          top: -fontSize * 0.45,
+                          left: 0,
+                          right: 0,
+                          child: pw.Center(
+                            child: pw.Text(
+                              '﹅',
+                              style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    // ルビを絶対配置で上に置く
-                    // Stackを使うことで、WidgetSpanの高さ計算にルビが含まれなくなり、行間が広がるのを防ぐ
-                    pw.Positioned(
-                      top: -fontSize * 0.45, // 漢字の上に配置（値は微調整してください）
-                      left: 0,
-                      right: 0,
-                      child: pw.Center(
-                        child: pw.Text(
-                          ruby,
-                          style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
+                  ),
+                );
+              }
+            } else {
+              // 通常のルビ処理
+              spans.add(
+                pw.WidgetSpan(
+                  // 漢字の位置を合わせるためにbaselineを調整
+                  baseline: -fontSize * 0.25,
+                  child: pw.Stack(
+                    overflow: pw.Overflow.visible, // 領域外（ルビ部分）が切り取られないように表示許可を与える
+                    children: [
+                      // 基準となる漢字（Stackのサイズはこの要素で決まる）
+                      pw.Text(
+                        kanji,
+                        style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                      ),
+                      // ルビを絶対配置で上に置く
+                      // Stackを使うことで、WidgetSpanの高さ計算にルビが含まれなくなり、行間が広がるのを防ぐ
+                      pw.Positioned(
+                        top: -fontSize * 0.45, // 漢字の上に配置（値は微調整してください）
+                        left: 0,
+                        right: 0,
+                        child: pw.Center(
+                          child: pw.Text(
+                            ruby,
+                            style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
+              );
+            }
             lastIndex = rubyMatch.end;
           }
 
