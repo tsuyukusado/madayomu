@@ -20,13 +20,6 @@ void main() async {
   final codeFontData = await File('fonts/BIZUDGothic-Bold.ttf').readAsBytes();
   final codeTtf = pw.Font.ttf(codeFontData.buffer.asByteData());
 
-  // 表紙画像の読み込み
-  final hyoshiFile = File('novel/hyoshi.png');
-  pw.MemoryImage? hyoshiImage;
-  if (await hyoshiFile.exists()) {
-    hyoshiImage = pw.MemoryImage(await hyoshiFile.readAsBytes());
-  }
-
   const fontSize = 9.0;
   const lineSpacing = 4.0; // 行間を広げる設定（フォントサイズの約0.6倍）
 
@@ -104,17 +97,18 @@ void main() async {
 
   Future<List<int>> generatePdf({required bool isDryRun}) async {
     final pdf = pw.Document();
-    bool hasCover = false;
 
-    if (hyoshiImage != null) {
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a5,
-          margin: pw.EdgeInsets.zero,
-          build: (context) => pw.Image(hyoshiImage!, fit: pw.BoxFit.cover),
-        ),
-      );
-      hasCover = true;
+    // 画像の事前読み込み
+    final imageCache = <String, pw.MemoryImage>{};
+    final imageRegex = RegExp(r'^｜(.*\.png)$', multiLine: true);
+    for (final match in imageRegex.allMatches(content)) {
+      final imageName = match.group(1)!;
+      if (!imageCache.containsKey(imageName)) {
+        final file = File('novel/$imageName');
+        if (await file.exists()) {
+          imageCache[imageName] = pw.MemoryImage(await file.readAsBytes());
+        }
+      }
     }
 
     final sections = content.split('===page===');
@@ -129,10 +123,7 @@ void main() async {
           theme: pw.ThemeData.withFont(base: ttf),
         footer: (context) {
           // 表紙がある場合は、本文のページ番号を1から始める
-          final pageNum = hasCover ? context.pageNumber - 1 : context.pageNumber;
-          if (pageNum <= 0) {
-            return pw.SizedBox(); // 表紙やページ番号が0以下のページには番号を表示しない
-          }
+          final pageNum = context.pageNumber;
 
           return pw.Container(
             alignment: pw.Alignment.centerRight,
@@ -153,7 +144,41 @@ void main() async {
           // 本文用の追加マージン（ページ設定のマージン10mm + 追加10mm = 合計20mmで、元の表示領域に合わせる）
           const bodyMargin = pw.EdgeInsets.symmetric(horizontal: 10.0 * PdfPageFormat.mm);
 
-          for (final line in lines) {
+          for (int i = 0; i < lines.length; i++) {
+            final line = lines[i];
+
+            // 画像の検出 (｜画像ファイル名.png)
+            final imageMatch = RegExp(r'^｜(.*\.png)$').firstMatch(line.trim());
+            if (imageMatch != null && !inCodeBlock) {
+              final imageName = imageMatch.group(1)!;
+              if (imageCache.containsKey(imageName)) {
+                // 後続の「｜」行をカウントして高さを決定
+                int heightLines = 1;
+                int j = i + 1;
+                while (j < lines.length) {
+                  final nextLine = lines[j].trim();
+                  if (nextLine == '｜') {
+                    heightLines++;
+                    j++;
+                  } else {
+                    break;
+                  }
+                }
+
+                widgets.add(pw.Container(
+                  height: (fontSize + lineSpacing) * heightLines,
+                  width: double.infinity,
+                  margin: bodyMargin,
+                  alignment: pw.Alignment.center,
+                  child: pw.Image(imageCache[imageName]!, fit: pw.BoxFit.contain),
+                ));
+
+                // 処理した行分スキップ
+                i = j - 1;
+                continue;
+              }
+            }
+
             // コードブロックの判定 (```)
             if (line.trim().startsWith('```')) {
               if (inCodeBlock) {
@@ -306,7 +331,7 @@ void main() async {
                 child: headerWidget,
                 onPageRecorded: (page) {
                   if (isDryRun) {
-                    final actualPage = hasCover ? page - 1 : page;
+                    final actualPage = page;
                     headerPageMap[text] = actualPage;
                   }
                 },
