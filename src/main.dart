@@ -170,6 +170,7 @@ void main() async {
   final linesForNumbering = content.split(RegExp(r'\r?\n'));
   final numberedLines = <String>[];
   int chapterCount = 0;
+  int sectionCount = 0;
   bool inCodeBlockForNumbering = false;
 
   for (final line in linesForNumbering) {
@@ -184,9 +185,18 @@ void main() async {
     }
 
     final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
-    if (headerMatch != null && headerMatch.group(1)!.length == 1 && headerMatch.group(2)!.trim() != 'index') {
-      chapterCount++;
-      numberedLines.add('# $chapterCount. ${headerMatch.group(2)!.trim()}');
+    if (headerMatch != null && headerMatch.group(2)!.trim() != 'index') {
+      final hashes = headerMatch.group(1)!;
+      if (hashes.length == 1) {
+        chapterCount++;
+        sectionCount = 0;
+        numberedLines.add('# $chapterCount. ${headerMatch.group(2)!.trim()}');
+      } else if (hashes.length == 2) {
+        sectionCount++;
+        numberedLines.add('## $chapterCount-$sectionCount. ${headerMatch.group(2)!.trim()}');
+      } else {
+        numberedLines.add(line);
+      }
     } else {
       numberedLines.add(line);
     }
