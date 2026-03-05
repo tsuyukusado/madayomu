@@ -31,6 +31,19 @@ void main() async {
   final codeFontData = await File('fonts/BIZUDGothic-Bold.ttf').readAsBytes();
   final codeTtf = pw.Font.ttf(codeFontData.buffer.asByteData());
 
+  // 表紙画像の追加
+  final hyoshiFile = File('novel/hyoshi.png');
+  if (await hyoshiFile.exists()) {
+    final hyoshiImage = pw.MemoryImage(await hyoshiFile.readAsBytes());
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a5,
+        margin: pw.EdgeInsets.zero,
+        build: (context) => pw.Image(hyoshiImage, fit: pw.BoxFit.cover),
+      ),
+    );
+  }
+
   const fontSize = 9.0;
   const lineSpacing = 4.0; // 行間を広げる設定（フォントサイズの約0.6倍）
 
@@ -179,12 +192,27 @@ void main() async {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a5,
+        // 余白を調整（上下15mm、左右10mm）して、ページ番号を端に寄せる
+        margin: const pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 10.0 * PdfPageFormat.mm),
         theme: pw.ThemeData.withFont(base: ttf),
+        footer: (context) {
+          return pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(top: 5.0),
+            child: pw.Text(
+              '${context.pageNumber}',
+              style: pw.TextStyle(font: ttf, fontSize: fontSize),
+            ),
+          );
+        },
         build: (context) {
           final lines = section.split(RegExp(r'\r?\n'));
           final widgets = <pw.Widget>[];
           bool inCodeBlock = false;
           final codeBuffer = StringBuffer();
+
+          // 本文用の追加マージン（ページ設定のマージン10mm + 追加10mm = 合計20mmで、元の表示領域に合わせる）
+          const bodyMargin = pw.EdgeInsets.symmetric(horizontal: 10.0 * PdfPageFormat.mm);
 
           for (final line in lines) {
             // コードブロックの判定 (```)
@@ -202,6 +230,7 @@ void main() async {
 
                     widgets.add(pw.Container(
                       width: double.infinity,
+                      margin: bodyMargin,
                       decoration: pw.BoxDecoration(
                         color: PdfColors.black,
                         borderRadius: pw.BorderRadius.vertical(
@@ -244,7 +273,7 @@ void main() async {
 
             // 水平線の検出 (---)
             if (RegExp(r'^---+$').hasMatch(line.trim())) {
-              widgets.add(pw.Divider());
+              widgets.add(pw.Container(margin: bodyMargin, child: pw.Divider()));
               continue;
             }
 
@@ -263,7 +292,7 @@ void main() async {
                   for (final entry in toc) {
                     widgets.add(pw.Container(
                       width: double.infinity,
-                      margin: const pw.EdgeInsets.only(bottom: lineSpacing),
+                      margin: const pw.EdgeInsets.only(bottom: lineSpacing).add(bodyMargin),
                       padding: pw.EdgeInsets.only(left: (entry.level - 1) * fontSize),
                       child: pw.Text(
                         entry.text,
@@ -279,7 +308,7 @@ void main() async {
               final headerFontSize = hashes.length == 2 ? fontSize * 1.5 : fontSize * 2;
 
               widgets.add(pw.Container(
-                margin: const pw.EdgeInsets.only(bottom: 10.0, top: 5.0), // 見出しの上下に少し余白を入れる
+                margin: const pw.EdgeInsets.only(bottom: 10.0, top: 5.0).add(bodyMargin), // 見出しの上下に少し余白を入れる
                 child: pw.Text(
                   text,
                   style: pw.TextStyle(font: gothicTtf, fontSize: headerFontSize),
@@ -396,7 +425,7 @@ void main() async {
             }
 
             widgets.add(pw.Container(
-              margin: const pw.EdgeInsets.only(bottom: lineSpacing),
+              margin: const pw.EdgeInsets.only(bottom: lineSpacing).add(bodyMargin),
               width: double.infinity,
               child: pw.Wrap(
                 runSpacing: lineSpacing,
