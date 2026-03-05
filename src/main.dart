@@ -501,7 +501,7 @@ void main() async {
                     final isLast = i == runes.length - 1;
 
                     charWidget = pw.Container(
-                      margin: const pw.EdgeInsets.only(top: 2.0),
+                      margin: const pw.EdgeInsets.only(top: 0.0),
                       padding: const pw.EdgeInsets.symmetric(vertical: 2.0, horizontal: 1.0),
                       decoration: pw.BoxDecoration(
                         color: PdfColors.black,
