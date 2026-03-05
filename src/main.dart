@@ -164,7 +164,34 @@ void main() async {
     buffer.write(await file.readAsString());
     buffer.writeln();
   }
-  final content = buffer.toString();
+  var content = buffer.toString();
+
+  // 見出しに番号を振る処理
+  final linesForNumbering = content.split(RegExp(r'\r?\n'));
+  final numberedLines = <String>[];
+  int chapterCount = 0;
+  bool inCodeBlockForNumbering = false;
+
+  for (final line in linesForNumbering) {
+    if (line.trim().startsWith('```')) {
+      inCodeBlockForNumbering = !inCodeBlockForNumbering;
+      numberedLines.add(line);
+      continue;
+    }
+    if (inCodeBlockForNumbering) {
+      numberedLines.add(line);
+      continue;
+    }
+
+    final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
+    if (headerMatch != null && headerMatch.group(1)!.length == 1 && headerMatch.group(2)!.trim() != 'index') {
+      chapterCount++;
+      numberedLines.add('# $chapterCount. ${headerMatch.group(2)!.trim()}');
+    } else {
+      numberedLines.add(line);
+    }
+  }
+  content = numberedLines.join('\n');
 
   // 目次データの生成
   final toc = <TocEntry>[];
