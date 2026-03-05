@@ -15,9 +15,23 @@ class TocEntry {
   TocEntry(this.level, this.text);
 }
 
-void main() async {
-  final pdf = pw.Document();
+class PageRecorder extends pw.SingleChildWidget {
+  PageRecorder({
+    required pw.Widget child,
+    required this.onPageRecorded,
+  }) : super(child: child);
 
+  final void Function(int pageNumber) onPageRecorded;
+
+  @override
+  void paint(pw.Context context) {
+    super.paint(context);
+    paintChild(context);
+    onPageRecorded(context.pageNumber);
+  }
+}
+
+void main() async {
   // 日本語フォントを読み込む
   final fontData = await File('fonts/ShipporiMincho-Regular.ttf').readAsBytes();
   final ttf = pw.Font.ttf(fontData.buffer.asByteData());
@@ -31,19 +45,11 @@ void main() async {
   final codeFontData = await File('fonts/BIZUDGothic-Bold.ttf').readAsBytes();
   final codeTtf = pw.Font.ttf(codeFontData.buffer.asByteData());
 
-  bool hasCover = false;
-  // 表紙画像の追加
+  // 表紙画像の読み込み
   final hyoshiFile = File('novel/hyoshi.png');
+  pw.MemoryImage? hyoshiImage;
   if (await hyoshiFile.exists()) {
-    final hyoshiImage = pw.MemoryImage(await hyoshiFile.readAsBytes());
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a5,
-        margin: pw.EdgeInsets.zero,
-        build: (context) => pw.Image(hyoshiImage, fit: pw.BoxFit.cover),
-      ),
-    );
-    hasCover = true;
+    hyoshiImage = pw.MemoryImage(await hyoshiFile.readAsBytes());
   }
 
   const fontSize = 9.0;
@@ -224,16 +230,34 @@ void main() async {
     }
   }
 
-  final sections = content.split('===page===');
+  // ページ番号マップ
+  final headerPageMap = <String, int>{};
 
-  for (final section in sections) {
-    if (section.trim().isEmpty) continue;
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a5,
-        // 余白を調整（上下15mm、左右10mm）して、ページ番号を端に寄せる
-        margin: const pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 10.0 * PdfPageFormat.mm),
-        theme: pw.ThemeData.withFont(base: ttf),
+  Future<List<int>> generatePdf({required bool isDryRun}) async {
+    final pdf = pw.Document();
+    bool hasCover = false;
+
+    if (hyoshiImage != null) {
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a5,
+          margin: pw.EdgeInsets.zero,
+          build: (context) => pw.Image(hyoshiImage!, fit: pw.BoxFit.cover),
+        ),
+      );
+      hasCover = true;
+    }
+
+    final sections = content.split('===page===');
+
+    for (final section in sections) {
+      if (section.trim().isEmpty) continue;
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a5,
+          // 余白を調整（上下15mm、左右10mm）して、ページ番号を端に寄せる
+          margin: const pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 10.0 * PdfPageFormat.mm),
+          theme: pw.ThemeData.withFont(base: ttf),
         footer: (context) {
           // 表紙がある場合は、本文のページ番号を1から始める
           final pageNum = hasCover ? context.pageNumber - 1 : context.pageNumber;
@@ -335,13 +359,25 @@ void main() async {
                 } else if (hashes.length == 2) {
                   // ## index の場合は目次の中身を展開する（見出し自体は出力しない）
                   for (final entry in toc) {
+                    final pageNum = headerPageMap[entry.text];
+                    final pageStr = pageNum != null ? '$pageNum' : '';
+
                     widgets.add(pw.Container(
                       width: double.infinity,
                       margin: const pw.EdgeInsets.only(bottom: lineSpacing).add(bodyMargin),
                       padding: pw.EdgeInsets.only(left: (entry.level - 1) * fontSize),
-                      child: pw.Text(
-                        entry.text,
-                        style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                      child: pw.Row(
+                        children: [
+                          pw.Text(
+                            entry.text,
+                            style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                          ),
+                          pw.Spacer(),
+                          pw.Text(
+                            pageStr,
+                            style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                          ),
+                        ],
                       ),
                     ));
                   }
@@ -352,12 +388,22 @@ void main() async {
               // ## の場合は1.5倍、それ以外は2倍
               final headerFontSize = hashes.length == 2 ? fontSize * 1.5 : fontSize * 2;
 
-              widgets.add(pw.Container(
+              final headerWidget = pw.Container(
                 margin: const pw.EdgeInsets.only(bottom: 10.0, top: 5.0).add(bodyMargin), // 見出しの上下に少し余白を入れる
                 child: pw.Text(
                   text,
                   style: pw.TextStyle(font: gothicTtf, fontSize: headerFontSize),
                 ),
+              );
+
+              widgets.add(PageRecorder(
+                child: headerWidget,
+                onPageRecorded: (page) {
+                  if (isDryRun) {
+                    final actualPage = hasCover ? page - 1 : page;
+                    headerPageMap[text] = actualPage;
+                  }
+                },
               ));
               continue;
             }
@@ -483,8 +529,15 @@ void main() async {
       ),
     );
   }
+    return await pdf.save();
+  }
 
+  // 1回目（ページ番号取得用）
+  await generatePdf(isDryRun: true);
+  // 2回目（本番出力用）
+  final bytes = await generatePdf(isDryRun: false);
+  
   final file = File('test.pdf');
-  await file.writeAsBytes(await pdf.save());
+  await file.writeAsBytes(bytes);
   print('PDFができたぜ！');
 }
