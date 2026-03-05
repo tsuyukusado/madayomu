@@ -2,34 +2,9 @@ import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-// 禁則処理のために文字とメタデータを保持するクラス
-class BuiltItem {
-  final pw.Widget widget;
-  final bool isKinsoku;
-  BuiltItem(this.widget, {this.isKinsoku = false});
-}
-
-class TocEntry {
-  final int level;
-  final String text;
-  TocEntry(this.level, this.text);
-}
-
-class PageRecorder extends pw.SingleChildWidget {
-  PageRecorder({
-    required pw.Widget child,
-    required this.onPageRecorded,
-  }) : super(child: child);
-
-  final void Function(int pageNumber) onPageRecorded;
-
-  @override
-  void paint(pw.Context context) {
-    super.paint(context);
-    paintChild(context);
-    onPageRecorded(context.pageNumber);
-  }
-}
+import 'models.dart';
+import 'utils.dart';
+import 'widgets.dart';
 
 void main() async {
   // 日本語フォントを読み込む
@@ -58,112 +33,6 @@ void main() async {
   final directory = Directory('novel');
   final files = directory.listSync().whereType<File>().where((f) => f.path.endsWith('.md')).toList();
   files.sort((a, b) => a.path.compareTo(b.path));
-
-  // 太字、インラインコード、ルビをまとめてパースするローカル関数
-  List<pw.InlineSpan> parseRichText(String text) {
-    final spans = <pw.InlineSpan>[];
-    // 優先順位: インラインコード > ルビ > 太字
-    final regex = RegExp(r'(`[^`]+`)|(｜.+?《.+?》)|(\*\*.+?\*\*)');
-    int lastIndex = 0;
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastIndex) {
-        spans.add(pw.TextSpan(
-          text: text.substring(lastIndex, match.start),
-          style: pw.TextStyle(font: ttf, fontSize: fontSize),
-        ));
-      }
-
-      final matchedText = match.group(0)!;
-
-      if (match.group(1) != null) {
-        // Group 1: インラインコード (`...`)
-        spans.add(pw.TextSpan(
-          text: matchedText.substring(1, matchedText.length - 1),
-          style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
-        ));
-      } else if (match.group(2) != null) {
-        // Group 2: ルビ (｜漢字《ルビ》)
-        final rubyContentMatch = RegExp(r'｜(.+?)《(.+?)》').firstMatch(matchedText);
-        if (rubyContentMatch != null) {
-          final kanji = rubyContentMatch.group(1)!;
-          final ruby = rubyContentMatch.group(2)!;
-
-          if (ruby == '圏') {
-            // 傍点（圏点）の処理
-            for (final char in kanji.runes) {
-              final charStr = String.fromCharCode(char);
-              spans.add(
-                pw.WidgetSpan(
-                  baseline: -fontSize * 0.25,
-                  child: pw.Stack(
-                    overflow: pw.Overflow.visible,
-                    children: [
-                      pw.Text(
-                        charStr,
-                        style: pw.TextStyle(font: ttf, fontSize: fontSize),
-                      ),
-                      pw.Positioned(
-                        top: -fontSize * 0.45,
-                        left: 0,
-                        right: 0,
-                        child: pw.Center(
-                          child: pw.Text(
-                            '﹅',
-                            style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-          } else {
-            // 通常のルビ処理
-            spans.add(
-              pw.WidgetSpan(
-                baseline: -fontSize * 0.25,
-                child: pw.Stack(
-                  overflow: pw.Overflow.visible,
-                  children: [
-                    pw.Text(
-                      kanji,
-                      style: pw.TextStyle(font: ttf, fontSize: fontSize),
-                    ),
-                    pw.Positioned(
-                      top: -fontSize * 0.45,
-                      left: 0,
-                      right: 0,
-                      child: pw.Center(
-                        child: pw.Text(
-                          ruby,
-                          style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-        }
-      } else if (match.group(3) != null) {
-        // Group 3: 太字 (**...**)
-        spans.add(pw.TextSpan(
-          text: matchedText.substring(2, matchedText.length - 2),
-          style: pw.TextStyle(font: gothicTtf, fontSize: fontSize),
-        ));
-      }
-      lastIndex = match.end;
-    }
-    if (lastIndex < text.length) {
-      spans.add(pw.TextSpan(
-        text: text.substring(lastIndex),
-        style: pw.TextStyle(font: ttf, fontSize: fontSize),
-      ));
-    }
-    return spans;
-  }
 
   final buffer = StringBuffer();
   for (final file in files) {
@@ -278,6 +147,7 @@ void main() async {
           final lines = section.split(RegExp(r'\r?\n'));
           final widgets = <pw.Widget>[];
           bool inCodeBlock = false;
+          String currentCodeLang = '';
           final codeBuffer = StringBuffer();
 
           // 本文用の追加マージン（ページ設定のマージン10mm + 追加10mm = 合計20mmで、元の表示領域に合わせる）
@@ -314,12 +184,6 @@ void main() async {
                         bottom: isLast ? 4.0 : 1.0,
                       ),
                       child: () {
-                        final style = pw.TextStyle(
-                            font: codeTtf,
-                            fontSize: fontSize,
-                            color: PdfColors.white,
-                            fontFallback: [ttf]);
-
                         final indentMatch = RegExp(r'^(\s*)').firstMatch(lineText);
                         final indent = indentMatch?.group(1) ?? '';
                         final trimmedLine = lineText.trimLeft();
@@ -329,14 +193,20 @@ void main() async {
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
                               // インデントと「- 」を一つの塊として扱い、改行させない
-                              pw.Container(child: pw.Text(indent + '- ', style: style)),
+                              pw.Container(child: pw.RichText(
+                                text: highlightCode(indent + '- ', currentCodeLang, codeTtf, ttf, fontSize)
+                              )),
                               pw.Expanded(
-                                child: pw.Text(trimmedLine.substring(2), style: style)
+                                child: pw.RichText(
+                                  text: highlightCode(trimmedLine.substring(2), currentCodeLang, codeTtf, ttf, fontSize)
+                                )
                               )
                             ],
                           );
                         } else {
-                          return pw.Text(lineText, style: style);
+                          return pw.RichText(
+                            text: highlightCode(lineText, currentCodeLang, codeTtf, ttf, fontSize)
+                          );
                         }
                       }(),
                     ));
@@ -347,6 +217,8 @@ void main() async {
               } else {
                 // コードブロック開始
                 inCodeBlock = true;
+                final match = RegExp(r'^```\s*(\w*)').firstMatch(line.trim());
+                currentCodeLang = match?.group(1) ?? '';
               }
               continue;
             }
@@ -458,7 +330,13 @@ void main() async {
               ));
             }
 
-            spans.addAll(parseRichText(textContent));
+            spans.addAll(parseRichText(
+              textContent,
+              ttf: ttf,
+              codeTtf: codeTtf,
+              gothicTtf: gothicTtf,
+              fontSize: fontSize,
+            ));
 
             // 禁則文字セット（行頭に来てはいけない文字）
             const kinsokuChars = {'、', '。', 'っ', 'ゃ', 'ゅ', 'ょ', 'ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ', 'ゎ', 'ヵ', 'ヶ', 'ー', '…', '！', '？', '!', '?', ')', '）', ']', '］', '}', '｝', '」', '』', ',', '.'};
