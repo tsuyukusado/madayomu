@@ -25,7 +25,7 @@ void main() async {
   final codeFontData = await File('fonts/BIZUDGothic-Bold.ttf').readAsBytes();
   final codeTtf = pw.Font.ttf(codeFontData.buffer.asByteData());
 
-  const fontSize = 12.0;
+  const fontSize = 9.0;
   const lineSpacing = 4.0; // 行間を広げる設定（フォントサイズの約0.6倍）
 
   final directory = Directory('novel');
@@ -151,6 +151,7 @@ void main() async {
     if (section.trim().isEmpty) continue;
     pdf.addPage(
       pw.MultiPage(
+        pageFormat: PdfPageFormat.a5,
         theme: pw.ThemeData.withFont(base: ttf),
         build: (context) {
           final lines = section.split(RegExp(r'\r?\n'));
@@ -164,19 +165,37 @@ void main() async {
               if (inCodeBlock) {
                 // コードブロック終了
                 inCodeBlock = false;
-                widgets.add(pw.Container(
-                  width: double.infinity,
-                  margin: const pw.EdgeInsets.only(bottom: lineSpacing),
-                  padding: const pw.EdgeInsets.all(4.0),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.black,
-                    borderRadius: pw.BorderRadius.circular(4.0),
-                  ),
-                  child: pw.Text(
-                    codeBuffer.toString().trimRight(),
-                    style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white, lineSpacing: lineSpacing),
-                  ),
-                ));
+                final codeContent = codeBuffer.toString().trimRight();
+                if (codeContent.isNotEmpty) {
+                  final codeLines = codeContent.split('\n');
+                  for (int i = 0; i < codeLines.length; i++) {
+                    final lineText = codeLines[i];
+                    final isFirst = i == 0;
+                    final isLast = i == codeLines.length - 1;
+
+                    widgets.add(pw.Container(
+                      width: double.infinity,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.black,
+                        borderRadius: pw.BorderRadius.vertical(
+                          top: isFirst ? const pw.Radius.circular(4.0) : pw.Radius.zero,
+                          bottom: isLast ? const pw.Radius.circular(4.0) : pw.Radius.zero,
+                        ),
+                      ),
+                      padding: pw.EdgeInsets.only(
+                        left: 4.0,
+                        right: 4.0,
+                        top: isFirst ? 4.0 : 1.0,
+                        bottom: isLast ? 4.0 : 1.0,
+                      ),
+                      child: pw.Text(
+                        lineText,
+                        style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
+                      ),
+                    ));
+                  }
+                  widgets.add(pw.SizedBox(height: lineSpacing));
+                }
                 codeBuffer.clear();
               } else {
                 // コードブロック開始
@@ -206,7 +225,10 @@ void main() async {
             final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
             if (headerMatch != null) {
               final hashes = headerMatch.group(1)!;
-              final text = headerMatch.group(2)!;
+              var text = headerMatch.group(2)!;
+              if (text == 'index') {
+                text = '目次';
+              }
               // ## の場合は1.5倍、それ以外は2倍
               final headerFontSize = hashes.length == 2 ? fontSize * 1.5 : fontSize * 2;
 
