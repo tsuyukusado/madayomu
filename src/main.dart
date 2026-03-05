@@ -328,12 +328,11 @@ void main() async {
                           return pw.Row(
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
-                              if (indent.isNotEmpty) pw.Text(indent, style: style),
-                              // 「- 」を一つの塊として扱い、改行させない
-                              pw.Container(child: pw.Text('- ', style: style)),
+                              // インデントと「- 」を一つの塊として扱い、改行させない
+                              pw.Container(child: pw.Text(indent + '- ', style: style)),
                               pw.Expanded(
-                                child: pw.Text(trimmedLine.substring(2), style: style),
-                              ),
+                                child: pw.Text(trimmedLine.substring(2), style: style)
+                              )
                             ],
                           );
                         } else {
