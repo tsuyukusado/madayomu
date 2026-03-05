@@ -159,11 +159,18 @@ void main() async {
               if (inCodeBlock) {
                 // コードブロック終了
                 inCodeBlock = false;
-                final codeContent = codeBuffer.toString().trimRight();
+                final codeContent = codeBuffer.toString();
+
                 if (codeContent.isNotEmpty) {
-                  final codeLines = codeContent.split('\n');
+                  // 改行コードの違い(\r\nなど)を吸収して分割
+                  final codeLines = codeContent.split(RegExp(r'\r?\n'));
+                  // writelnによって末尾に余分な空行ができるため、最後が空なら削除
+                  if (codeLines.isNotEmpty && codeLines.last.isEmpty) {
+                    codeLines.removeLast();
+                  }
+
                   for (int i = 0; i < codeLines.length; i++) {
-                    final lineText = codeLines[i];
+                    var lineText = codeLines[i];
                     final isFirst = i == 0;
                     final isLast = i == codeLines.length - 1;
 
@@ -184,6 +191,11 @@ void main() async {
                         bottom: isLast ? 4.0 : 1.0,
                       ),
                       child: () {
+                        // 空行の場合はSizedBoxで高さを確保（フォント依存を回避）
+                        if (lineText.isEmpty) {
+                          return pw.SizedBox(height: fontSize);
+                        }
+
                         final indentMatch = RegExp(r'^(\s*)').firstMatch(lineText);
                         final indent = indentMatch?.group(1) ?? '';
                         final trimmedLine = lineText.trimLeft();
