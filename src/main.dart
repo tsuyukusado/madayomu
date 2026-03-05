@@ -313,10 +313,33 @@ void main() async {
                         top: isFirst ? 4.0 : 1.0,
                         bottom: isLast ? 4.0 : 1.0,
                       ),
-                      child: pw.Text(
-                        lineText,
-                        style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
-                      ),
+                      child: () {
+                        final style = pw.TextStyle(
+                            font: codeTtf,
+                            fontSize: fontSize,
+                            color: PdfColors.white,
+                            fontFallback: [ttf]);
+
+                        final indentMatch = RegExp(r'^(\s*)').firstMatch(lineText);
+                        final indent = indentMatch?.group(1) ?? '';
+                        final trimmedLine = lineText.trimLeft();
+
+                        if (trimmedLine.startsWith('- ')) {
+                          return pw.Row(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              if (indent.isNotEmpty) pw.Text(indent, style: style),
+                              // 「- 」を一つの塊として扱い、改行させない
+                              pw.Container(child: pw.Text('- ', style: style)),
+                              pw.Expanded(
+                                child: pw.Text(trimmedLine.substring(2), style: style),
+                              ),
+                            ],
+                          );
+                        } else {
+                          return pw.Text(lineText, style: style);
+                        }
+                      }(),
                     ));
                   }
                   widgets.add(pw.SizedBox(height: lineSpacing));
