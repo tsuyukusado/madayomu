@@ -9,6 +9,12 @@ class BuiltItem {
   BuiltItem(this.widget, {this.isKinsoku = false});
 }
 
+class TocEntry {
+  final int level;
+  final String text;
+  TocEntry(this.level, this.text);
+}
+
 void main() async {
   final pdf = pw.Document();
 
@@ -145,6 +151,27 @@ void main() async {
   }
   final content = buffer.toString();
 
+  // 目次データの生成
+  final toc = <TocEntry>[];
+  final allLines = content.split(RegExp(r'\r?\n'));
+  bool inCodeBlock = false;
+  for (final line in allLines) {
+    if (line.trim().startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (inCodeBlock) continue;
+
+    final headerMatch = RegExp(r'^(#+)\s*(.*)').firstMatch(line);
+    if (headerMatch != null) {
+      final hashes = headerMatch.group(1)!;
+      final text = headerMatch.group(2)!.trim();
+      if (text != 'index') {
+        toc.add(TocEntry(hashes.length, text));
+      }
+    }
+  }
+
   final sections = content.split('===page===');
 
   for (final section in sections) {
@@ -226,9 +253,28 @@ void main() async {
             if (headerMatch != null) {
               final hashes = headerMatch.group(1)!;
               var text = headerMatch.group(2)!;
+
               if (text == 'index') {
-                text = '目次';
+                if (hashes.length == 1) {
+                  // # index の場合は「目次」というタイトルにする
+                  text = '目次';
+                } else if (hashes.length == 2) {
+                  // ## index の場合は目次の中身を展開する（見出し自体は出力しない）
+                  for (final entry in toc) {
+                    widgets.add(pw.Container(
+                      width: double.infinity,
+                      margin: const pw.EdgeInsets.only(bottom: lineSpacing),
+                      padding: pw.EdgeInsets.only(left: (entry.level - 1) * fontSize),
+                      child: pw.Text(
+                        entry.text,
+                        style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                      ),
+                    ));
+                  }
+                  continue;
+                }
               }
+
               // ## の場合は1.5倍、それ以外は2倍
               final headerFontSize = hashes.length == 2 ? fontSize * 1.5 : fontSize * 2;
 
