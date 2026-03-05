@@ -31,6 +31,7 @@ void main() async {
   final codeFontData = await File('fonts/BIZUDGothic-Bold.ttf').readAsBytes();
   final codeTtf = pw.Font.ttf(codeFontData.buffer.asByteData());
 
+  bool hasCover = false;
   // 表紙画像の追加
   final hyoshiFile = File('novel/hyoshi.png');
   if (await hyoshiFile.exists()) {
@@ -42,6 +43,7 @@ void main() async {
         build: (context) => pw.Image(hyoshiImage, fit: pw.BoxFit.cover),
       ),
     );
+    hasCover = true;
   }
 
   const fontSize = 9.0;
@@ -196,11 +198,17 @@ void main() async {
         margin: const pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 10.0 * PdfPageFormat.mm),
         theme: pw.ThemeData.withFont(base: ttf),
         footer: (context) {
+          // 表紙がある場合は、本文のページ番号を1から始める
+          final pageNum = hasCover ? context.pageNumber - 1 : context.pageNumber;
+          if (pageNum <= 0) {
+            return pw.SizedBox(); // 表紙やページ番号が0以下のページには番号を表示しない
+          }
+
           return pw.Container(
             alignment: pw.Alignment.centerRight,
             margin: const pw.EdgeInsets.only(top: 5.0),
             child: pw.Text(
-              '${context.pageNumber}',
+              '$pageNum',
               style: pw.TextStyle(font: ttf, fontSize: fontSize),
             ),
           );
