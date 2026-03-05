@@ -264,15 +264,25 @@ void main() async {
                   final rune = runes[i];
                   final charStr = String.fromCharCode(rune);
 
-                  if (rune == 0x3000) {
-                    builtItems.add(BuiltItem(pw.SizedBox(width: fontSize, height: fontSize)));
-                    continue;
-                  } else if (rune == 0x0020 || rune == 0x0009) {
-                    builtItems.add(BuiltItem(pw.SizedBox(width: fontSize * 0.5, height: fontSize)));
-                    continue;
-                  }
+                  pw.Widget charWidget;
 
-                  pw.Widget charWidget = pw.Text(charStr, style: span.style);
+                  if (rune == 0x3000) {
+                    if (span.style?.font == codeTtf) {
+                      charWidget = pw.SizedBox(width: fontSize, height: fontSize);
+                    } else {
+                      builtItems.add(BuiltItem(pw.SizedBox(width: fontSize, height: fontSize)));
+                      continue;
+                    }
+                  } else if (rune == 0x0020 || rune == 0x0009) {
+                    if (span.style?.font == codeTtf) {
+                      charWidget = pw.SizedBox(width: fontSize * 0.5, height: fontSize);
+                    } else {
+                      builtItems.add(BuiltItem(pw.SizedBox(width: fontSize * 0.5, height: fontSize)));
+                      continue;
+                    }
+                  } else {
+                    charWidget = pw.Text(charStr, style: span.style);
+                  }
 
                   // インラインコードの装飾
                   if (span.style?.font == codeTtf) {
