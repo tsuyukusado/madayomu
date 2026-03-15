@@ -80,6 +80,21 @@ void main() {
       expect((tokens[2] as PlainToken).text, equals('ないこと'));
     });
 
+    test('複数文字ベースでもルビが長すぎる場合、隣から吸収して再配分される', () {
+      // ｜極端《きょくたんすぎるがおためしで》なルビも入力 → 14文字ルビ÷2文字ベース→7文字必要→5文字吸収
+      final tokens = parseTokens('｜極端《きょくたんすぎるがおためしで》なルビも入力することが可能です。');
+      expect(tokens.length, equals(8)); // RubyToken×7 + PlainToken×1
+      expect((tokens[0] as RubyToken).base, equals('極'));
+      expect((tokens[0] as RubyToken).ruby, equals('きょ'));
+      expect((tokens[1] as RubyToken).base, equals('端'));
+      expect((tokens[1] as RubyToken).ruby, equals('くた'));
+      expect((tokens[2] as RubyToken).base, equals('な'));
+      expect((tokens[2] as RubyToken).ruby, equals('んす'));
+      expect((tokens[6] as RubyToken).base, equals('入'));
+      expect((tokens[6] as RubyToken).ruby, equals('しで'));
+      expect((tokens[7] as PlainToken).text, equals('力することが可能です。'));
+    });
+
     test('混在したテキストは複数のTokenに分解される', () {
       final tokens = parseTokens('これは｜漢字《かんじ》で**太字**の文章だ');
       expect(tokens.length, equals(6));

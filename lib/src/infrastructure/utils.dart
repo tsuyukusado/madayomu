@@ -15,9 +15,9 @@ List<TextToken> _processRubyOverflow(List<TextToken> tokens) {
       final baseRunes = token.base.runes.toList();
       final rubyRunes = token.ruby.runes.toList();
 
-      if (baseRunes.length == 1 && rubyRunes.length > 2) {
+      if (rubyRunes.length > baseRunes.length * 2) { // ベースが何文字でも、1文字あたり2文字を超えたらあふれ
         final totalBaseNeeded = (rubyRunes.length / 2.0).ceil();
-        final extraNeeded = totalBaseNeeded - 1;
+        final extraNeeded = totalBaseNeeded - baseRunes.length;
 
         bool handled = false;
         if (extraNeeded > 0 && i + 1 < tokens.length && tokens[i + 1] is PlainToken) {
@@ -28,7 +28,7 @@ List<TextToken> _processRubyOverflow(List<TextToken> tokens) {
             final absorbedRunes = nextRunes.take(extraNeeded).toList();
             final remainingRunes = nextRunes.skip(extraNeeded).toList();
 
-            final allBaseRunes = [baseRunes.first, ...absorbedRunes];
+            final allBaseRunes = [...baseRunes, ...absorbedRunes];
             final rubyPerBase = (rubyRunes.length / allBaseRunes.length).ceil();
 
             int rubyIndex = 0;
