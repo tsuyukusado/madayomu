@@ -3,22 +3,115 @@ import 'package:pdf/widgets.dart' as pw;
 
 import 'text_token.dart';
 
+// 一文字ベースでルビが3文字以上の場合、隣のプレーンテキストから文字を吸収して再配分する
+List<TextToken> _processRubyOverflow(List<TextToken> tokens) {
+  final result = <TextToken>[];
+  int i = 0;
+
+  while (i < tokens.length) {
+    final token = tokens[i];
+
+    if (token is RubyToken) {
+      final baseRunes = token.base.runes.toList();
+      final rubyRunes = token.ruby.runes.toList();
+
+      if (baseRunes.length == 1 && rubyRunes.length > 2) {
+        final totalBaseNeeded = (rubyRunes.length / 2.0).ceil();
+        final extraNeeded = totalBaseNeeded - 1;
+
+        bool handled = false;
+        if (extraNeeded > 0 && i + 1 < tokens.length && tokens[i + 1] is PlainToken) {
+          final nextPlain = tokens[i + 1] as PlainToken;
+          final nextRunes = nextPlain.text.runes.toList();
+
+          if (extraNeeded <= nextRunes.length) {
+            final absorbedRunes = nextRunes.take(extraNeeded).toList();
+            final remainingRunes = nextRunes.skip(extraNeeded).toList();
+
+            final allBaseRunes = [baseRunes.first, ...absorbedRunes];
+            final rubyPerBase = (rubyRunes.length / allBaseRunes.length).ceil();
+
+            int rubyIndex = 0;
+            for (final baseRune in allBaseRunes) {
+              final slice = rubyRunes.skip(rubyIndex).take(rubyPerBase).toList();
+              rubyIndex += slice.length;
+              while (slice.length < rubyPerBase) {
+                slice.add(0x3000); // 全角スペースで埋める
+              }
+              result.add(RubyToken(
+                base: String.fromCharCode(baseRune),
+                ruby: String.fromCharCodes(slice),
+              ));
+            }
+
+            if (remainingRunes.isNotEmpty) {
+              result.add(PlainToken(String.fromCharCodes(remainingRunes)));
+            }
+
+            i += 2;
+            handled = true;
+          }
+        }
+
+        if (!handled) {
+          print('[警告] ルビが正常に表示されません: ｜${token.base}《${token.ruby}》');
+          result.add(token);
+          i++;
+        }
+      } else {
+        result.add(token);
+        i++;
+      }
+    } else {
+      result.add(token);
+      i++;
+    }
+  }
+
+  return result;
+}
+
+// ベースが複数文字のルビを一文字ずつのRubyTokenに分割する
+List<RubyToken> _splitRuby(String base, String ruby) {
+  final baseRunes = base.runes.toList();
+  if (baseRunes.length == 1) return [RubyToken(base: base, ruby: ruby)];
+
+  final rubyRunes = ruby.runes.toList();
+  final rubyPerBase = (rubyRunes.length / baseRunes.length).ceil();
+
+  final result = <RubyToken>[];
+  int rubyIndex = 0;
+
+  for (final baseRune in baseRunes) {
+    final slice = rubyRunes.skip(rubyIndex).take(rubyPerBase).toList();
+    rubyIndex += slice.length;
+
+    while (slice.length < rubyPerBase) {
+      slice.add(0x3000);
+    }
+
+    result.add(RubyToken(base: String.fromCharCode(baseRune), ruby: String.fromCharCodes(slice)));
+  }
+
+  return result;
+}
+
 // テキストをTokenのリストに分解する（PDFに依存しない純粋な関数）
 List<TextToken> parseTokens(String text) {
-  final tokens = <TextToken>[];
+  final rawTokens = <TextToken>[];
   final regex = RegExp(r'(`[^`]+`)|(｜.+?《.+?》)|(\*\*.+?\*\*)');
   int lastIndex = 0;
 
   for (final match in regex.allMatches(text)) {
     if (match.start > lastIndex) {
-      tokens.add(PlainToken(text.substring(lastIndex, match.start)));
+      rawTokens.add(PlainToken(text.substring(lastIndex, match.start)));
     }
 
     final matchedText = match.group(0)!;
 
     if (match.group(1) != null) {
       // インラインコード (`...`)
-      tokens.add(InlineCodeToken(matchedText.substring(1, matchedText.length - 1)));
+      rawTokens.add(InlineCodeToken(matchedText.substring(1, matchedText.length - 1)));
     } else if (match.group(2) != null) {
       // ルビ・圏点 (｜...《...》)
       final rubyMatch = RegExp(r'｜(.+?)《(.+?)》').firstMatch(matchedText);
@@ -26,24 +119,37 @@ List<TextToken> parseTokens(String text) {
         final base = rubyMatch.group(1)!;
         final ruby = rubyMatch.group(2)!;
         if (ruby == '圏') {
-          tokens.add(KantenToken(base));
+          rawTokens.add(KantenToken(base));
         } else {
-          tokens.add(RubyToken(base: base, ruby: ruby));
+          rawTokens.add(RubyToken(base: base, ruby: ruby));
         }
       }
     } else if (match.group(3) != null) {
       // 太字 (**...**)
-      tokens.add(BoldToken(matchedText.substring(2, matchedText.length - 2)));
+      rawTokens.add(BoldToken(matchedText.substring(2, matchedText.length - 2)));
     }
 
     lastIndex = match.end;
   }
 
   if (lastIndex < text.length) {
-    tokens.add(PlainToken(text.substring(lastIndex)));
+    rawTokens.add(PlainToken(text.substring(lastIndex)));
   }
 
-  return tokens;
+  // Step 1: 一文字ベースでルビが長すぎる場合、隣から吸収して再配分
+  final overflowProcessed = _processRubyOverflow(rawTokens);
+
+  // Step 2: 複数文字ベースを一文字ずつに分割
+  final result = <TextToken>[];
+  for (final token in overflowProcessed) {
+    if (token is RubyToken) {
+      result.addAll(_splitRuby(token.base, token.ruby));
+    } else {
+      result.add(token);
+    }
+  }
+
+  return result;
 }
 
 // TokenのリストをPDFのInlineSpanリストに変換する
@@ -74,6 +180,7 @@ List<pw.InlineSpan> parseRichText(
         style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
       ));
     } else if (token is RubyToken) {
+      // overflow処理後、各ベースに対するルビは最大2文字なのでStackの幅は常にベース文字幅と同等
       spans.add(pw.WidgetSpan(
         baseline: -fontSize * 0.25,
         child: pw.Stack(
