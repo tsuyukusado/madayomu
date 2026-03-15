@@ -192,7 +192,7 @@ class _HomePageState extends State<HomePage> {
   Future<List<int>> _generateFromFiles() async {
     // .mdファイルをファイル名でソート
     final mdFiles = _droppedFiles.entries
-        .where((e) => e.key.endsWith('.md'))
+        .where((e) => e.key.endsWith('.md') || e.key.endsWith('.txt'))
         .toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
@@ -211,8 +211,15 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
+    // 画像ファイルを抽出
+    final imageData = {
+      for (final e in _droppedFiles.entries)
+        if (e.key.endsWith('.png') || e.key.endsWith('.jpg') || e.key.endsWith('.jpeg'))
+          e.key: e.value,
+    };
+
     final novel = NovelContent(buffer.toString(), okuduke);
-    return convertToPdf(novel, FlutterPdfRenderer());
+    return convertToPdf(novel, FlutterPdfRenderer(), imageData: imageData);
   }
 
   void _downloadPdf(List<int> bytes) {

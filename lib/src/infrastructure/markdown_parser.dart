@@ -49,7 +49,7 @@ class MarkdownParser {
       final line = lines[i];
 
       // 画像の検出 (｜画像ファイル名.png)
-      final imageMatch = RegExp(r'^｜(.*\.png)$').firstMatch(line.trim());
+      final imageMatch = RegExp(r'^｜(.*\.(png|jpg|jpeg))$').firstMatch(line.trim());
       if (imageMatch != null && !inCodeBlock) {
         final imageName = imageMatch.group(1)!;
         if (imageCache.containsKey(imageName)) {

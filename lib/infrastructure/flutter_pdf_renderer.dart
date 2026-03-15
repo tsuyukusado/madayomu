@@ -13,8 +13,14 @@ class FlutterPdfRenderer implements IPdfRenderer {
   Future<List<int>> render(
     String content,
     String? okuduke,
-    List<TocEntry> toc,
-  ) async {
+    List<TocEntry> toc, {
+    Map<String, Uint8List> imageData = const {},
+  }) async {
+    // Uint8List → pw.MemoryImage に変換
+    final imageCache = {
+      for (final e in imageData.entries) e.key: pw.MemoryImage(e.value),
+    };
+
     final fonts = await _loadFontsFromAssets();
     final generator = PdfGenerator(fonts);
     final headerPageMap = <String, int>{};
@@ -26,6 +32,7 @@ class FlutterPdfRenderer implements IPdfRenderer {
       toc: toc,
       headerPageMap: headerPageMap,
       isDryRun: true,
+      imageCache: imageCache,
     );
 
     // 2回目（本番出力用）
@@ -35,6 +42,7 @@ class FlutterPdfRenderer implements IPdfRenderer {
       toc: toc,
       headerPageMap: headerPageMap,
       isDryRun: false,
+      imageCache: imageCache,
     );
   }
 
