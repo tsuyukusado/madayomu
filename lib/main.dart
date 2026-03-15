@@ -115,7 +115,9 @@ void main() async {
 ===page===
 # おわりに
 
-　以上が主な機能です。''';
+　以上が主な機能です。
+　
+　不具合や質問がある場合、`tsuyukusado@gmail.com`までご連絡いただけますと幸いです。''';
 
 class _HomePageState extends State<HomePage> {
   final _controller = TextEditingController(text: _sampleText);
