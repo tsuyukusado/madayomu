@@ -7,7 +7,10 @@ import 'markdown_parser.dart';
 import 'models.dart';
 
 class PdfGenerator {
-  PdfGenerator(this.ttf, this.gothicTtf, this.codeTtf);
+  PdfGenerator(FontSet fonts)
+      : ttf = fonts.ttf,
+        gothicTtf = fonts.gothicTtf,
+        codeTtf = fonts.codeTtf;
 
   final pw.Font ttf;
   final pw.Font gothicTtf;
