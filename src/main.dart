@@ -57,9 +57,9 @@ void main() async {
     if (headerMatch != null && headerMatch.group(2)!.trim() != 'index') {
       final hashes = headerMatch.group(1)!;
       if (hashes.length == 1) {
-        chapterCount++;
         sectionCount = 0;
         numberedLines.add('# $chapterCount. ${headerMatch.group(2)!.trim()}');
+        chapterCount++;
       } else if (hashes.length == 2) {
         sectionCount++;
         numberedLines.add('## $chapterCount-$sectionCount. ${headerMatch.group(2)!.trim()}');
