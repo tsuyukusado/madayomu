@@ -3,6 +3,7 @@ String applyNumbering(String content) {
   final lines = content.split(RegExp(r'\r?\n'));
   final numbered = <String>[];
   int chapterCount = 0;
+  int currentChapter = 0; // 直前に出力した#の番号（##が参照する）
   int sectionCount = 0;
   bool inCodeBlock = false;
 
@@ -22,11 +23,12 @@ String applyNumbering(String content) {
       final hashes = headerMatch.group(1)!;
       if (hashes.length == 1) {
         sectionCount = 0;
-        numbered.add('# $chapterCount. ${headerMatch.group(2)!.trim()}');
+        currentChapter = chapterCount;
+        numbered.add('# $currentChapter. ${headerMatch.group(2)!.trim()}');
         chapterCount++;
       } else if (hashes.length == 2) {
         sectionCount++;
-        numbered.add('## $chapterCount-$sectionCount. ${headerMatch.group(2)!.trim()}');
+        numbered.add('## $currentChapter-$sectionCount. ${headerMatch.group(2)!.trim()}');
       } else {
         numbered.add(line);
       }
