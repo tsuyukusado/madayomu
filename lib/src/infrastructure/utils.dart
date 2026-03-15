@@ -180,7 +180,10 @@ List<pw.InlineSpan> parseRichText(
         style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
       ));
     } else if (token is RubyToken) {
-      // overflow処理後、各ベースに対するルビは最大2文字なのでStackの幅は常にベース文字幅と同等
+      // 末尾に全角スペースがある（パディングされた）ルビは左寄せ、それ以外は中央寄せ
+      // 例：「ら　」→左寄せで「ら」が左に来て自然につながる、「やま」→中央寄せ
+      final isPadded = token.ruby.runes.last == 0x3000;
+      final rubyText = isPadded ? token.ruby.trimRight() : token.ruby; // 描画前に末尾スペースを除去
       spans.add(pw.WidgetSpan(
         baseline: -fontSize * 0.25,
         child: pw.Stack(
@@ -191,8 +194,9 @@ List<pw.InlineSpan> parseRichText(
               top: -fontSize * 0.45,
               left: 0,
               right: 0,
-              child: pw.Center(
-                child: pw.Text(token.ruby, style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5)),
+              child: pw.Align(
+                alignment: isPadded ? pw.Alignment.centerLeft : pw.Alignment.center,
+                child: pw.Text(rubyText, style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5)),
               ),
             ),
           ],

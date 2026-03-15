@@ -33,8 +33,40 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+const _sampleText = '''# index
+## index
+===page===
+# はじめに
+
+　これはマダヨムの機能サンプルです。
+
+## ルビ・圏点
+
+　｜山《やま》に登った。｜山《やまやま》山のように長いルビは自動調整されます。
+
+　｜大切《圏》なことは、｜諦《あきら》めないこと。
+
+## 文字装飾
+
+　**太字**と`インラインコード`が使えます。
+
+---
+
+## コードブロック
+
+```dart
+void main() async {
+  print('こんにちは');
+}
+```
+
+===page===
+# おわりに
+
+　以上が主な機能です。''';
+
 class _HomePageState extends State<HomePage> {
-  final _controller = TextEditingController();
+  final _controller = TextEditingController(text: _sampleText);
   bool _isLoading = false;
   String? _errorMessage;
 

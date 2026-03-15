@@ -69,6 +69,17 @@ void main() {
       expect((tokens[0] as RubyToken).ruby, equals('やまや'));
     });
 
+    test('吸収した文字のルビが余る場合、全角スペースで補填される', () {
+      // ｜諦《あきら》め → 「め」を吸収 → 諦め／あきら → 諦／あき + め／ら
+      final tokens = parseTokens('｜諦《あきら》めないこと');
+      expect(tokens.length, equals(3));
+      expect((tokens[0] as RubyToken).base, equals('諦'));
+      expect((tokens[0] as RubyToken).ruby, equals('あき'));
+      expect((tokens[1] as RubyToken).base, equals('め'));
+      expect((tokens[1] as RubyToken).ruby, equals('ら\u3000')); // 全角スペースで補填
+      expect((tokens[2] as PlainToken).text, equals('ないこと'));
+    });
+
     test('混在したテキストは複数のTokenに分解される', () {
       final tokens = parseTokens('これは｜漢字《かんじ》で**太字**の文章だ');
       expect(tokens.length, equals(6));
