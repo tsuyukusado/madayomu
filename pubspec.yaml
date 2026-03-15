@@ -3,9 +3,23 @@ description: A PDF generation project.
 version: 1.0.0
 
 environment:
-  sdk: ^3.0.0
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0'
 
 dependencies:
+  flutter:
+    sdk: flutter
   pdf: ^3.11.3
+  web: ^1.1.1
+
 dev_dependencies:
-  test: ^1.30.0
+  flutter_test:
+    sdk: flutter
+  test: ^1.29.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - fonts/ShipporiMincho-Regular.ttf
+    - fonts/NotoSansJP-Bold.ttf
+    - fonts/BIZUDGothic-Bold.ttf

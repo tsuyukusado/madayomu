@@ -1,7 +1,7 @@
 import 'package:test/test.dart';
 
-import '../src/domain/text_token.dart';
-import '../src/infrastructure/utils.dart';
+import 'package:madayomu/src/domain/text_token.dart';
+import 'package:madayomu/src/infrastructure/utils.dart';
 
 void main() {
   group('parseTokens', () {

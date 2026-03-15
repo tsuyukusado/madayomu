@@ -2,12 +2,12 @@
 // まずここが動く
 
 // 他ファイルをインポート
-import 'infrastructure/text_loader.dart';
-import 'infrastructure/text_sorter.dart';
-import 'infrastructure/text_merger.dart';
-import 'infrastructure/pdf_renderer.dart';
-import 'infrastructure/pdf_exporter.dart';
-import 'application/converter.dart';
+import 'package:madayomu/src/infrastructure/text_loader.dart';
+import 'package:madayomu/src/infrastructure/text_sorter.dart';
+import 'package:madayomu/src/infrastructure/text_merger.dart';
+import 'package:madayomu/src/infrastructure/pdf_renderer.dart';
+import 'package:madayomu/src/infrastructure/pdf_exporter.dart';
+import 'package:madayomu/src/application/converter.dart';
 
 void // 何も戻り値を返さないという意味。
 main() // 引数なし
