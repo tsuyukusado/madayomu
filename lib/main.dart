@@ -1,10 +1,11 @@
+import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
-
 import 'package:flutter/material.dart';
 
+import 'web_drop.dart';
 import 'infrastructure/flutter_pdf_renderer.dart';
 import 'src/application/converter.dart';
 import 'src/domain/models.dart';
@@ -94,36 +95,137 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  Future<void> _generatePdf() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  // フォルダモード用
+  bool _isFolderMode = false;
+  Map<String, Uint8List> _droppedFiles = {};
+  bool _isDragOver = false;
 
+  // ドラッグイベントリスナー（dispose時に解除するため保持）
+  late final JSFunction _onDragOver;
+  late final JSFunction _onDragLeave;
+  late final JSFunction _onDrop;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupDropListeners();
+  }
+
+  void _setupDropListeners() {
+    _onDragOver = ((web.Event e) {
+      e.preventDefault();
+      if (!_isDragOver && mounted) setState(() => _isDragOver = true);
+    }).toJS;
+
+    _onDragLeave = ((web.DragEvent e) {
+      // relatedTargetがnull＝ブラウザウィンドウの外に出た
+      if (e.relatedTarget == null && _isDragOver && mounted) {
+        setState(() => _isDragOver = false);
+      }
+    }).toJS;
+
+    _onDrop = ((web.DragEvent e) {
+      e.preventDefault();
+      if (mounted) setState(() => _isDragOver = false);
+      _handleDrop(e);
+    }).toJS;
+
+    web.document.addEventListener('dragover', _onDragOver);
+    web.document.addEventListener('dragleave', _onDragLeave);
+    web.document.addEventListener('drop', _onDrop);
+  }
+
+  @override
+  void dispose() {
+    web.document.removeEventListener('dragover', _onDragOver);
+    web.document.removeEventListener('dragleave', _onDragLeave);
+    web.document.removeEventListener('drop', _onDrop);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleDrop(web.DragEvent event) async {
+    final items = event.dataTransfer?.items;
+    if (items == null || items.length == 0) return;
+
+    final files = await readDroppedItems(items);
+    if (files.isEmpty) return;
+
+    setState(() {
+      _isFolderMode = true;
+      _droppedFiles = files;
+    });
+  }
+
+  void _clearFolderMode() {
+    setState(() {
+      _isFolderMode = false;
+      _droppedFiles = {};
+    });
+  }
+
+  Future<void> _generatePdf() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final novel = NovelContent(text, null);
-      final renderer = FlutterPdfRenderer();
-      final bytes = await convertToPdf(novel, renderer);
-
-      // ブラウザでPDFをダウンロードする
-      final blob = web.Blob(
-        [Uint8List.fromList(bytes).toJS].toJS,
-        web.BlobPropertyBag(type: 'application/pdf'),
-      );
-      final url = web.URL.createObjectURL(blob);
-      web.HTMLAnchorElement()
-        ..href = url
-        ..download = 'output.pdf'
-        ..click();
-      web.URL.revokeObjectURL(url);
+      final bytes = _isFolderMode
+          ? await _generateFromFiles()
+          : await _generateFromText();
+      _downloadPdf(bytes);
     } catch (e) {
       setState(() => _errorMessage = 'エラーが発生しました: $e');
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<List<int>> _generateFromText() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) throw Exception('テキストが空です');
+    final novel = NovelContent(text, null);
+    return convertToPdf(novel, FlutterPdfRenderer());
+  }
+
+  Future<List<int>> _generateFromFiles() async {
+    // .mdファイルをファイル名でソート
+    final mdFiles = _droppedFiles.entries
+        .where((e) => e.key.endsWith('.md'))
+        .toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    if (mdFiles.isEmpty) throw Exception('.mdファイルが見つかりません');
+
+    // 本文と奥付を分けて結合
+    final buffer = StringBuffer();
+    String? okuduke;
+    for (final f in mdFiles) {
+      final text = utf8.decode(f.value);
+      if (f.key.contains('99_okuduke')) {
+        okuduke = text;
+      } else {
+        buffer.write(text);
+        buffer.writeln();
+      }
+    }
+
+    final novel = NovelContent(buffer.toString(), okuduke);
+    return convertToPdf(novel, FlutterPdfRenderer());
+  }
+
+  void _downloadPdf(List<int> bytes) {
+    final blob = web.Blob(
+      [Uint8List.fromList(bytes).toJS].toJS,
+      web.BlobPropertyBag(type: 'application/pdf'),
+    );
+    final url = web.URL.createObjectURL(blob);
+    web.HTMLAnchorElement()
+      ..href = url
+      ..download = 'output.pdf'
+      ..click();
+    web.URL.revokeObjectURL(url);
   }
 
   @override
@@ -136,32 +238,124 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: TextField(
-                controller: _controller,
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                decoration: const InputDecoration(
-                  hintText: 'ここにテキストを貼り付けてください',
-                  border: OutlineInputBorder(),
-                ),
-              ),
+              child: _isFolderMode ? _buildFileList() : _buildTextInput(),
             ),
             const SizedBox(height: 16),
             if (_errorMessage != null)
-              Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _generatePdf,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('PDFつくーる'),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_errorMessage!,
+                    style: const TextStyle(color: Colors.red)),
+              ),
+            Row(
+              children: [
+                if (_isFolderMode) ...[
+                  OutlinedButton(
+                    onPressed: _isLoading ? null : _clearFolderMode,
+                    child: const Text('テキスト入力に戻る'),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _generatePdf,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('PDFつくーる'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTextInput() {
+    return Stack(
+      children: [
+        TextField(
+          controller: _controller,
+          maxLines: null,
+          expands: true,
+          textAlignVertical: TextAlignVertical.top,
+          decoration: const InputDecoration(
+            hintText: 'ここにテキストを貼り付け、またはフォルダをドロップ',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        if (_isDragOver)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withAlpha(25),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Center(
+                  child: Text(
+                    'フォルダをドロップ',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFileList() {
+    final files = _droppedFiles.keys.toList()..sort();
+    final mdCount = files.where((f) => f.endsWith('.md')).length;
+    final imgCount = files.where((f) =>
+        f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')).length;
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '読み込んだファイル：テキスト $mdCount 件、画像 $imgCount 件',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          const Divider(),
+          Expanded(
+            child: ListView.builder(
+              itemCount: files.length,
+              itemBuilder: (ctx, i) {
+                final name = files[i];
+                final isMd = name.endsWith('.md');
+                return ListTile(
+                  dense: true,
+                  leading: Icon(
+                    isMd ? Icons.article_outlined : Icons.image_outlined,
+                    size: 18,
+                  ),
+                  title: Text(name, style: const TextStyle(fontSize: 13)),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
