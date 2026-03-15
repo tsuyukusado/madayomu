@@ -1,7 +1,52 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-// 太字、インラインコード、ルビをまとめてパースする関数
+import 'text_token.dart';
+
+// テキストをTokenのリストに分解する（PDFに依存しない純粋な関数）
+List<TextToken> parseTokens(String text) {
+  final tokens = <TextToken>[];
+  final regex = RegExp(r'(`[^`]+`)|(｜.+?《.+?》)|(\*\*.+?\*\*)');
+  int lastIndex = 0;
+
+  for (final match in regex.allMatches(text)) {
+    if (match.start > lastIndex) {
+      tokens.add(PlainToken(text.substring(lastIndex, match.start)));
+    }
+
+    final matchedText = match.group(0)!;
+
+    if (match.group(1) != null) {
+      // インラインコード (`...`)
+      tokens.add(InlineCodeToken(matchedText.substring(1, matchedText.length - 1)));
+    } else if (match.group(2) != null) {
+      // ルビ・圏点 (｜...《...》)
+      final rubyMatch = RegExp(r'｜(.+?)《(.+?)》').firstMatch(matchedText);
+      if (rubyMatch != null) {
+        final base = rubyMatch.group(1)!;
+        final ruby = rubyMatch.group(2)!;
+        if (ruby == '圏') {
+          tokens.add(KantenToken(base));
+        } else {
+          tokens.add(RubyToken(base: base, ruby: ruby));
+        }
+      }
+    } else if (match.group(3) != null) {
+      // 太字 (**...**)
+      tokens.add(BoldToken(matchedText.substring(2, matchedText.length - 2)));
+    }
+
+    lastIndex = match.end;
+  }
+
+  if (lastIndex < text.length) {
+    tokens.add(PlainToken(text.substring(lastIndex)));
+  }
+
+  return tokens;
+}
+
+// TokenのリストをPDFのInlineSpanリストに変換する
 List<pw.InlineSpan> parseRichText(
   String text, {
   required pw.Font ttf,
@@ -9,107 +54,67 @@ List<pw.InlineSpan> parseRichText(
   required pw.Font gothicTtf,
   required double fontSize,
 }) {
+  final tokens = parseTokens(text);
   final spans = <pw.InlineSpan>[];
-  // 優先順位: インラインコード > ルビ > 太字
-  final regex = RegExp(r'(`[^`]+`)|(｜.+?《.+?》)|(\*\*.+?\*\*)');
-  int lastIndex = 0;
-  for (final match in regex.allMatches(text)) {
-    if (match.start > lastIndex) {
+
+  for (final token in tokens) {
+    if (token is PlainToken) {
       spans.add(pw.TextSpan(
-        text: text.substring(lastIndex, match.start),
+        text: token.text,
         style: pw.TextStyle(font: ttf, fontSize: fontSize),
       ));
-    }
-
-    final matchedText = match.group(0)!;
-
-    if (match.group(1) != null) {
-      // Group 1: インラインコード (`...`)
+    } else if (token is BoldToken) {
       spans.add(pw.TextSpan(
-        text: matchedText.substring(1, matchedText.length - 1),
-        style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
-      ));
-    } else if (match.group(2) != null) {
-      // Group 2: ルビ (｜漢字《ルビ》)
-      final rubyContentMatch = RegExp(r'｜(.+?)《(.+?)》').firstMatch(matchedText);
-      if (rubyContentMatch != null) {
-        final kanji = rubyContentMatch.group(1)!;
-        final ruby = rubyContentMatch.group(2)!;
-
-        if (ruby == '圏') {
-          // 傍点（圏点）の処理
-          for (final char in kanji.runes) {
-            final charStr = String.fromCharCode(char);
-            spans.add(
-              pw.WidgetSpan(
-                baseline: -fontSize * 0.25,
-                child: pw.Stack(
-                  overflow: pw.Overflow.visible,
-                  children: [
-                    pw.Text(
-                      charStr,
-                      style: pw.TextStyle(font: ttf, fontSize: fontSize),
-                    ),
-                    pw.Positioned(
-                      top: -fontSize * 0.45,
-                      left: 0,
-                      right: 0,
-                      child: pw.Center(
-                        child: pw.Text(
-                          '﹅',
-                          style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-        } else {
-          // 通常のルビ処理
-          spans.add(
-            pw.WidgetSpan(
-              baseline: -fontSize * 0.25,
-              child: pw.Stack(
-                overflow: pw.Overflow.visible,
-                children: [
-                  pw.Text(
-                    kanji,
-                    style: pw.TextStyle(font: ttf, fontSize: fontSize),
-                  ),
-                  pw.Positioned(
-                    top: -fontSize * 0.45,
-                    left: 0,
-                    right: 0,
-                    child: pw.Center(
-                      child: pw.Text(
-                        ruby,
-                        style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-      }
-    } else if (match.group(3) != null) {
-      // Group 3: 太字 (**...**)
-      spans.add(pw.TextSpan(
-        text: matchedText.substring(2, matchedText.length - 2),
+        text: token.text,
         style: pw.TextStyle(font: gothicTtf, fontSize: fontSize),
       ));
+    } else if (token is InlineCodeToken) {
+      spans.add(pw.TextSpan(
+        text: token.text,
+        style: pw.TextStyle(font: codeTtf, fontSize: fontSize, color: PdfColors.white),
+      ));
+    } else if (token is RubyToken) {
+      spans.add(pw.WidgetSpan(
+        baseline: -fontSize * 0.25,
+        child: pw.Stack(
+          overflow: pw.Overflow.visible,
+          children: [
+            pw.Text(token.base, style: pw.TextStyle(font: ttf, fontSize: fontSize)),
+            pw.Positioned(
+              top: -fontSize * 0.45,
+              left: 0,
+              right: 0,
+              child: pw.Center(
+                child: pw.Text(token.ruby, style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5)),
+              ),
+            ),
+          ],
+        ),
+      ));
+    } else if (token is KantenToken) {
+      for (final char in token.text.runes) {
+        final charStr = String.fromCharCode(char);
+        spans.add(pw.WidgetSpan(
+          baseline: -fontSize * 0.25,
+          child: pw.Stack(
+            overflow: pw.Overflow.visible,
+            children: [
+              pw.Text(charStr, style: pw.TextStyle(font: ttf, fontSize: fontSize)),
+              pw.Positioned(
+                top: -fontSize * 0.45,
+                left: 0,
+                right: 0,
+                child: pw.Center(
+                  child: pw.Text('﹅', style: pw.TextStyle(font: ttf, fontSize: fontSize * 0.5)),
+                ),
+              ),
+            ],
+          ),
+        ));
+      }
     }
-    lastIndex = match.end;
   }
-  if (lastIndex < text.length) {
-    spans.add(pw.TextSpan(
-      text: text.substring(lastIndex),
-      style: pw.TextStyle(font: ttf, fontSize: fontSize),
-    ));
-  }
+
   return spans;
 }
 
@@ -154,7 +159,6 @@ pw.TextSpan highlightCode(String text, String language, pw.Font font, pw.Font fa
       spans.add(pw.TextSpan(text: text.substring(lastIndex), style: defaultStyle));
     }
   } else if (language == 'md' || language == 'markdown') {
-    // Markdown Highlight
     if (text.trimLeft().startsWith('#')) {
       spans.add(pw.TextSpan(text: text, style: defaultStyle.copyWith(color: PdfColors.blue300)));
     } else {
