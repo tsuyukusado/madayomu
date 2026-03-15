@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('madayomu')),
+      appBar: AppBar(title: const Text('マダヨム〜PDFつくーる〜')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -142,7 +142,7 @@ class _HomePageState extends State<HomePage> {
                 expands: true,
                 textAlignVertical: TextAlignVertical.top,
                 decoration: const InputDecoration(
-                  hintText: 'ここにMarkdownを貼り付けてください',
+                  hintText: 'ここにテキストを貼り付けてください',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -158,7 +158,7 @@ class _HomePageState extends State<HomePage> {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('PDFを作る'),
+                  : const Text('PDFつくーる'),
             ),
           ],
         ),
