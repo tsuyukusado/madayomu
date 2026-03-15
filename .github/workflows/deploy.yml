@@ -1,0 +1,33 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      VERCEL_ORG_ID: team_11oz6REI8wwfQ7CwaCPEUO9V
+      VERCEL_PROJECT_ID: prj_d72pEAPNngMSSBXf1u6PJMH7CmKB
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutterをセットアップ
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: パッケージをインストール
+        run: flutter pub get
+
+      - name: Webビルド
+        run: flutter build web --base-href /madayomu/
+
+      - name: Vercelにデプロイ
+        run: |
+          npm install -g vercel
+          cd build/web
+          vercel --prod --yes --token ${{ secrets.VERCEL_TOKEN }}
