@@ -2,7 +2,14 @@
 
 import 'dart:io';
 import 'package:pdf/widgets.dart' as pw;
-import '../domain/models.dart';
+
+// 3種類のフォントをまとめたクラス
+class FontSet {
+  final pw.Font ttf;
+  final pw.Font gothicTtf;
+  final pw.Font codeTtf;
+  FontSet(this.ttf, this.gothicTtf, this.codeTtf);
+}
 
 // 3種類のフォントをまとめて読み込んでFontSetで返す
 Future// まだ完成していない値の入れ物。asyncの時に使う。

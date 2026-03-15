@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import 'font.dart';
 import 'markdown_parser.dart';
 import '../domain/models.dart';
 

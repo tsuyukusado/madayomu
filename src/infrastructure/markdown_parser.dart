@@ -5,6 +5,13 @@ import '../domain/models.dart';
 import 'utils.dart';
 import 'widgets.dart';
 
+// 禁則処理のために文字とメタデータを保持するクラス
+class BuiltItem {
+  final pw.Widget widget;
+  final bool isKinsoku;
+  BuiltItem(this.widget, {this.isKinsoku = false});
+}
+
 class MarkdownParser {
   MarkdownParser({
     required this.ttf,
