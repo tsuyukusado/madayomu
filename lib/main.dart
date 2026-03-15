@@ -229,7 +229,7 @@ class _HomePageState extends State<HomePage> {
     final buffer = StringBuffer();
     String? okuduke;
     for (final f in mdFiles) {
-      final text = utf8.decode(f.value);
+      final text = _decodeText(f.value);
       if (f.key.contains('99_okuduke')) {
         okuduke = text;
       } else {
@@ -247,6 +247,23 @@ class _HomePageState extends State<HomePage> {
 
     final novel = NovelContent(buffer.toString(), okuduke);
     return convertToPdf(novel, FlutterPdfRenderer(), imageData: imageData);
+  }
+
+  // UTF-8 / UTF-16 LE / UTF-16 BE に対応したテキストデコード
+  String _decodeText(Uint8List bytes) {
+    // UTF-16 LE BOM: FF FE
+    if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
+      return String.fromCharCodes(
+        Uint8List.sublistView(bytes, 2).buffer.asUint16List(),
+      );
+    }
+    // UTF-16 BE BOM: FE FF
+    if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
+      final u16 = Uint8List.sublistView(bytes, 2).buffer.asUint16List();
+      return String.fromCharCodes(u16.map((c) => ((c & 0xFF) << 8) | (c >> 8)));
+    }
+    // UTF-8（壊れていても続行）
+    return utf8.decode(bytes, allowMalformed: true);
   }
 
   void _downloadPdf(List<int> bytes) {
