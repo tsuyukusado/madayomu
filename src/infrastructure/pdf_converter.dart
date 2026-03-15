@@ -1,5 +1,5 @@
 import 'font.dart';
-import 'models.dart';
+import '../domain/models.dart';
 import 'pdf_generator.dart';
 
 // テキストをPDFのバイト列に変換する

@@ -2,11 +2,11 @@
 // まずここが動く
 
 // 他ファイルをインポート
-import 'text_loader.dart';
-import 'text_sorter.dart';
-import 'text_merger.dart';
-import 'pdf_converter.dart';
-import 'pdf_exporter.dart';
+import 'infrastructure/text_loader.dart';
+import 'infrastructure/text_sorter.dart';
+import 'infrastructure/text_merger.dart';
+import 'infrastructure/pdf_converter.dart';
+import 'infrastructure/pdf_exporter.dart';
 
 void // 何も戻り値を返さないという意味。
 main() // 引数なし

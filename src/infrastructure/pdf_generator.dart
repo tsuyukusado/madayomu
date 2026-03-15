@@ -4,7 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'markdown_parser.dart';
-import 'models.dart';
+import '../domain/models.dart';
 
 class PdfGenerator {
   PdfGenerator(FontSet fonts)

@@ -2,7 +2,7 @@
 
 import 'dart:io';
 import 'package:pdf/widgets.dart' as pw;
-import 'models.dart';
+import '../domain/models.dart';
 
 // 3種類のフォントをまとめて読み込んでFontSetで返す
 Future// まだ完成していない値の入れ物。asyncの時に使う。

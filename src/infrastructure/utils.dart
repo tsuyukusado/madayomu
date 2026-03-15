@@ -1,7 +1,7 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'text_token.dart';
+import '../domain/text_token.dart';
 
 // 一文字ベースでルビが3文字以上の場合、隣のプレーンテキストから文字を吸収して再配分する
 List<TextToken> _processRubyOverflow(List<TextToken> tokens) {

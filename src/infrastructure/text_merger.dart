@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'models.dart';
+import '../domain/models.dart';
 
 // ファイルリストを本文と奥付に分けて結合する
 Future<NovelContent> mergeTexts(List<File> files) async {
