@@ -10,6 +10,13 @@ import 'infrastructure/flutter_pdf_renderer.dart';
 import 'src/application/converter.dart';
 import 'src/domain/models.dart';
 
+// ブラウザのTextDecoder API（Shift-JISなど多様な文字コードに対応）
+@JS('TextDecoder')
+extension type _TextDecoder._(JSObject _) implements JSObject {
+  external factory _TextDecoder(String encoding);
+  external String decode(JSObject buffer);
+}
+
 void main() {
   runApp(const MadayomuApp());
 }
@@ -253,19 +260,34 @@ class _HomePageState extends State<HomePage> {
 
   // UTF-8 / UTF-16 LE / UTF-16 BE に対応したテキストデコード
   String _decodeText(Uint8List bytes) {
+    // UTF-8 BOM: EF BB BF
+    if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+      return utf8.decode(Uint8List.sublistView(bytes, 3), allowMalformed: true);
+    }
     // UTF-16 LE BOM: FF FE
     if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
-      return String.fromCharCodes(
-        Uint8List.sublistView(bytes, 2).buffer.asUint16List(),
-      );
+      return _browserDecode(bytes, 'utf-16le');
     }
     // UTF-16 BE BOM: FE FF
     if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
-      final u16 = Uint8List.sublistView(bytes, 2).buffer.asUint16List();
-      return String.fromCharCodes(u16.map((c) => ((c & 0xFF) << 8) | (c >> 8)));
+      return _browserDecode(bytes, 'utf-16be');
     }
-    // UTF-8（壊れていても続行）
-    return utf8.decode(bytes, allowMalformed: true);
+    // UTF-8として試みる（失敗したらShift-JISにフォールバック）
+    try {
+      return utf8.decode(bytes);
+    } catch (_) {
+      return _browserDecode(bytes, 'shift-jis');
+    }
+  }
+
+  // ブラウザのTextDecoder APIを使ってデコード
+  String _browserDecode(Uint8List bytes, String encoding) {
+    try {
+      final decoder = _TextDecoder(encoding);
+      return decoder.decode(bytes.buffer.toJS);
+    } catch (_) {
+      return utf8.decode(bytes, allowMalformed: true);
+    }
   }
 
   void _downloadPdf(List<int> bytes) {
