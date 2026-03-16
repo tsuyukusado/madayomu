@@ -41,107 +41,9 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-const _sampleText = '''# とりあえずやってみよう
-　まず初めに、一番下の**PDFつくーる**というボタンをクリックしてください。
-　すると、このようなPDFが生成されます。
-===page===
-# index
-## index
-===page===
-# はじめに
-　これはマダヨムのサンプル文章です。このツールは、テキストをコピペしてワンクリックすることで、簡単にPDFを生成できます。
-
----
-
-## ルビ・圏点
-　ルビとは、文字の上に書かれるふりがなのことです。
-
-　｜創造《そうぞう》は、きみを｜楽《らく》にする。
-
-　なお、このような｜極端《きょくたんすぎるがおためしで》なルビも入力することが可能です。
-　｜圏点とは《圏》、｜文字の上に書かれる点のことです《圏》。
-
----
-
-## 文字装飾
-　文字を**太字**にすることが出来ます。
-
----
-## 全体装飾
-　`# index`と入力すると、「目次」という見出しが表示されます。
-　`## index`と入力すると、目次の本文を表示します。
-　目次の本文は、`#`または`##`で入力した行を自動的に抽出して表示します。また、右端には該当のページ数が表示されます。
-　`---`と入力すると、水平線が表示されます。
-
-# 生成方法は２通り
-　このツールでPDFを生成する方法は、大きく二通りあります。
-
----
-
-## コピー＆ペースト
-　文章にしたいテキストをコピーし、この文章が書かれているボックスにペーストしてください。
-　その後、**PDFつくーる**をクリックしてください。
-
----
-
-## ドラッグ&ドロップ
-　`.txt`または`.md`形式で、文章を執筆します。
-　執筆した文章のファイルを、一つのフォルダにまとめます。
-　この時、ファイル名の冒頭は`01`などの数字にしてください。
-　そのフォルダを、この文章が書かれているボックスにドラッグ＆ドロップしてください。
-　また、この生成方法の場合、以下の記法で、画像の挿入が可能です。
-
-```md
-｜ファイル名
-｜
-｜
-```
-
-　文章をまとめているフォルダに一緒に入れることで、画像を認識して反映します。
-　なお、`｜`の数を変えることで、画像の大きさを変更することが出来ます。
-===page===
-# 技術書向け
-　以下の機能は、技術書を書かれる方向けの機能です。
-
----
-
-## インラインコード
-　このように、`インラインコード`の入力が出来ます。
-
----
-
-## コードブロック
-```dart
-void main() async {
-  print('こんにちは');
-}
-```
-　上記のように、コードブロックの入力ができます。
-　シンタックスハイライトは、現在**dart**、**markdown**のみ対応しています。
-
-===page===
-# 実装予定機能等
-- 箇条書き機能が無い
-- リロードすると入力済みのテキストが消えてしまう
-- 各種記法の入力用ボタン実装
-- 印刷用PDFの生成機能（余白調整、ページ番号の偶数奇数配置）の実装
-- 用紙サイズ変更
-- 余白変更
-- フォントサイズ変更
-- フォント変更
-- 縦書き対応
-- 使い方説明の動画
-- Windows環境・コントロールZで戻れない
-- どこがボタンなのかわからない
-- ダウンロードしたPDFを見失ってしまう（最初から開く挙動にしたほうがいい）
-===page===
-# おわりに
-
-　以上が主な機能です。
-　不具合や質問がある場合、`tsuyukusado@gmail.com`までご連絡いただけますと幸いです。''';
 
 class _HomePageState extends State<HomePage> {
-  final _controller = TextEditingController(text: _sampleText);
+  final _controller = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -330,16 +232,6 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: _isFolderMode ? _buildFileList() : _buildTextInput(),
-            ),
-            const SizedBox(height: 16),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(_errorMessage!,
-                    style: const TextStyle(color: Colors.red)),
-              ),
             Row(
               children: [
                 if (_isFolderMode) ...[
@@ -351,6 +243,12 @@ class _HomePageState extends State<HomePage> {
                 ],
                 Expanded(
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(56),
+                      textStyle: const TextStyle(fontSize: 16),
+                    ),
                     onPressed: _isLoading ? null : () => _generatePdf(),
                     child: _isLoading
                         ? const SizedBox(
@@ -358,12 +256,18 @@ class _HomePageState extends State<HomePage> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('PDFつくーる（電子用）'),
+                        : const Text('ダウンロード（電子用）'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(56),
+                      textStyle: const TextStyle(fontSize: 16),
+                    ),
                     onPressed: _isLoading ? null : () => _generatePdf(isPrint: true),
                     child: _isLoading
                         ? const SizedBox(
@@ -371,10 +275,20 @@ class _HomePageState extends State<HomePage> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('PDFつくーる（印刷用）'),
+                        : const Text('ダウンロード（印刷用）'),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(_errorMessage!,
+                    style: const TextStyle(color: Colors.red)),
+              ),
+            Expanded(
+              child: _isFolderMode ? _buildFileList() : _buildTextInput(),
             ),
           ],
         ),
@@ -391,7 +305,7 @@ class _HomePageState extends State<HomePage> {
           expands: true,
           textAlignVertical: TextAlignVertical.top,
           decoration: const InputDecoration(
-            hintText: 'ここにテキストを貼り付け、またはフォルダをドロップ',
+            hintText: 'コピペ or ドラッグ＆ドロップ',
             border: OutlineInputBorder(),
           ),
         ),
