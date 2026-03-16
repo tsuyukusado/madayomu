@@ -44,6 +44,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _controller = TextEditingController();
+  final _focusNode = FocusNode();
+  TextSelection _savedSelection = const TextSelection.collapsed(offset: 0);
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -61,6 +63,12 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _setupDropListeners();
+    _controller.addListener(_saveSelection);
+  }
+
+  void _saveSelection() {
+    final sel = _controller.selection;
+    if (sel.start >= 0) _savedSelection = sel;
   }
 
   void _setupDropListeners() {
@@ -92,7 +100,9 @@ class _HomePageState extends State<HomePage> {
     web.document.removeEventListener('dragover', _onDragOver);
     web.document.removeEventListener('dragleave', _onDragLeave);
     web.document.removeEventListener('drop', _onDrop);
+    _controller.removeListener(_saveSelection);
     _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -367,11 +377,123 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         children: [
           for (final label in buttons) ...[
-            OutlinedButton(onPressed: null, child: Text(label)),
+            OutlinedButton(
+              onPressed: _isFolderMode ? null : () => _applyFormat(label),
+              child: Text(label),
+            ),
             const SizedBox(width: 8),
           ],
         ],
       ),
+    );
+  }
+
+  void _applyFormat(String label) {
+    // フォーカスが外れている場合、保存した選択位置を復元してから適用
+    final sel = _savedSelection;
+    if (sel.start < 0) return;
+    switch (label) {
+      case '太字':          _wrapInline('**', '**', sel);
+      case 'ルビ':          _insertRuby(sel);
+      case '圏点':          _insertKenten(sel);
+      case '大見出し':       _insertLinePrefix('# ', sel);
+      case '小見出し':       _insertLinePrefix('## ', sel);
+      case '目次':          _insertBlock('# index\n## index', sel);
+      case '改ページ':       _insertBlock('===page===', sel);
+      case '水平線':         _insertBlock('---', sel);
+      case '画像':          _insertBlock('｜', sel);
+      case 'インラインコード': _wrapInline('`', '`', sel);
+      case 'コードブロック':  _insertCodeBlock(sel);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  void _wrapInline(String before, String after, TextSelection sel) {
+    final text = _controller.text;
+    final selected = text.substring(sel.start, sel.end);
+    final newText = text.replaceRange(sel.start, sel.end, '$before$selected$after');
+    final cursor = sel.isCollapsed
+        ? sel.start + before.length
+        : sel.start + before.length + selected.length + after.length;
+    _controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursor),
+    );
+  }
+
+  void _insertRuby(TextSelection sel) {
+    final text = _controller.text;
+    if (sel.isCollapsed) {
+      _controller.value = TextEditingValue(
+        text: text.replaceRange(sel.start, sel.end, '｜《》'),
+        selection: TextSelection.collapsed(offset: sel.start + 1),
+      );
+    } else {
+      final selected = text.substring(sel.start, sel.end);
+      final insert = '｜$selected《》';
+      _controller.value = TextEditingValue(
+        text: text.replaceRange(sel.start, sel.end, insert),
+        selection: TextSelection.collapsed(offset: sel.start + 1 + selected.length + 1),
+      );
+    }
+  }
+
+  void _insertKenten(TextSelection sel) {
+    final text = _controller.text;
+    if (sel.isCollapsed) {
+      _controller.value = TextEditingValue(
+        text: text.replaceRange(sel.start, sel.end, '｜《圏》'),
+        selection: TextSelection.collapsed(offset: sel.start + 1),
+      );
+    } else {
+      final selected = text.substring(sel.start, sel.end);
+      final insert = '｜$selected《圏》';
+      _controller.value = TextEditingValue(
+        text: text.replaceRange(sel.start, sel.end, insert),
+        selection: TextSelection.collapsed(offset: sel.start + insert.length),
+      );
+    }
+  }
+
+  void _insertLinePrefix(String prefix, TextSelection sel) {
+    final text = _controller.text;
+    final lineStart = _findLineStart(text, sel.start);
+    final newText = text.replaceRange(lineStart, lineStart, prefix);
+    _controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: lineStart + prefix.length),
+    );
+  }
+
+  int _findLineStart(String text, int pos) {
+    if (pos == 0) return 0;
+    final idx = text.lastIndexOf('\n', pos - 1);
+    return idx == -1 ? 0 : idx + 1;
+  }
+
+  void _insertBlock(String content, TextSelection sel) {
+    final text = _controller.text;
+    final pos = sel.isCollapsed ? sel.start : sel.end;
+    final needBefore = pos > 0 && text[pos - 1] != '\n';
+    final insert = '${needBefore ? '\n' : ''}$content\n';
+    _controller.value = TextEditingValue(
+      text: text.replaceRange(sel.start, sel.end, insert),
+      selection: TextSelection.collapsed(offset: sel.start + insert.length),
+    );
+  }
+
+  void _insertCodeBlock(TextSelection sel) {
+    final text = _controller.text;
+    final pos = sel.isCollapsed ? sel.start : sel.end;
+    final needBefore = pos > 0 && text[pos - 1] != '\n';
+    final selected = sel.isCollapsed ? '' : text.substring(sel.start, sel.end);
+    final insert = '${needBefore ? '\n' : ''}```\n$selected\n```\n';
+    final cursorOffset = sel.start + (needBefore ? 1 : 0) + 4;
+    _controller.value = TextEditingValue(
+      text: text.replaceRange(sel.start, sel.end, insert),
+      selection: TextSelection.collapsed(offset: cursorOffset),
     );
   }
 
@@ -380,6 +502,7 @@ class _HomePageState extends State<HomePage> {
       children: [
         TextField(
           controller: _controller,
+          focusNode: _focusNode,
           maxLines: null,
           expands: true,
           textAlignVertical: TextAlignVertical.top,
