@@ -216,11 +216,7 @@ class _HomePageState extends State<HomePage> {
       web.BlobPropertyBag(type: 'application/pdf'),
     );
     final url = web.URL.createObjectURL(blob);
-    web.HTMLAnchorElement()
-      ..href = url
-      ..download = 'output.pdf'
-      ..click();
-    web.URL.revokeObjectURL(url);
+    web.window.open(url, '_blank');
   }
 
   @override
