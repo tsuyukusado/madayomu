@@ -34,10 +34,8 @@ class FlutterPdfRenderer implements IPdfRenderer {
     final fonts = await _loadFontsFromAssets();
     final generator = PdfGenerator(fonts, leftMarginMm: leftMarginMm, rightMarginMm: rightMarginMm, isPrint: isPrint);
     final headerPageMap = <String, int>{};
-    // 印刷モードのみ: ドライランでウィジェット→物理ページのマッピングを収集
-    final widgetPageMap = isPrint ? <int, int>{} : null;
 
-    // 1回目（TOCページ番号 + 印刷時のウィジェット→ページマッピング取得用）
+    // 1回目（ページ番号取得用）
     await generator.generate(
       content: content,
       okudukeContent: okuduke,
@@ -45,7 +43,6 @@ class FlutterPdfRenderer implements IPdfRenderer {
       headerPageMap: headerPageMap,
       isDryRun: true,
       imageCache: imageCache,
-      widgetPageMap: widgetPageMap,
     );
 
     // 2回目（本番出力用）
@@ -56,7 +53,6 @@ class FlutterPdfRenderer implements IPdfRenderer {
       headerPageMap: headerPageMap,
       isDryRun: false,
       imageCache: imageCache,
-      widgetPageMap: widgetPageMap,
     );
   }
 
