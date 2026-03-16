@@ -43,7 +43,7 @@ class MarkdownParser {
     final codeBuffer = StringBuffer();
 
     // 本文用の追加マージン（ページ設定のマージン10mm + 追加10mm = 合計20mmで、元の表示領域に合わせる）
-    final bodyMargin = pw.EdgeInsets.symmetric(horizontal: 10.0 * PdfPageFormat.mm);
+    final bodyMargin = pw.EdgeInsets.symmetric(horizontal: 12.5 * PdfPageFormat.mm);
 
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];

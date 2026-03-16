@@ -48,7 +48,7 @@ class PdfGenerator {
         pw.MultiPage(
           pageFormat: PdfPageFormat.a5,
           // 余白を調整（上下15mm、左右10mm）して、ページ番号を端に寄せる
-          margin: pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 10.0 * PdfPageFormat.mm),
+          margin: pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 12.5 * PdfPageFormat.mm),
           theme: pw.ThemeData.withFont(base: ttf),
           footer: (context) {
             final pageNum = context.pageNumber;
@@ -71,7 +71,7 @@ class PdfGenerator {
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a5,
-          margin: pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 10.0 * PdfPageFormat.mm),
+          margin: pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 12.5 * PdfPageFormat.mm),
           theme: pw.ThemeData.withFont(base: ttf),
           build: (context) {
             final widgets = parser.parse(okudukeContent, useFullWidth: false);
