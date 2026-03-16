@@ -9,6 +9,16 @@ import '../src/infrastructure/pdf_generator.dart';
 // IPdfRendererの実装（Flutter/Web向け）
 // フォントをアセットから読み込んでPDFを生成する（dart:ioを使わない）
 class FlutterPdfRenderer implements IPdfRenderer {
+  FlutterPdfRenderer({
+    this.leftMarginMm = 12.5,  // 電子書籍: 12.5 / 印刷用内側: 20
+    this.rightMarginMm = 12.5, // 電子書籍: 12.5 / 印刷用外側: 5
+    this.isPrint = false,
+  });
+
+  final double leftMarginMm;
+  final double rightMarginMm;
+  final bool isPrint;
+
   @override
   Future<List<int>> render(
     String content,
@@ -22,7 +32,7 @@ class FlutterPdfRenderer implements IPdfRenderer {
     };
 
     final fonts = await _loadFontsFromAssets();
-    final generator = PdfGenerator(fonts);
+    final generator = PdfGenerator(fonts, leftMarginMm: leftMarginMm, rightMarginMm: rightMarginMm, isPrint: isPrint);
     final headerPageMap = <String, int>{};
 
     // 1回目（ページ番号取得用）

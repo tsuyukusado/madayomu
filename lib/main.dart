@@ -120,7 +120,7 @@ void main() async {
 　シンタックスハイライトは、現在**dart**、**markdown**のみ対応しています。
 
 ===page===
-# 現在確認している問題・実装予定の機能
+# 実装予定機能等
 - 箇条書き機能が無い
 - リロードすると入力済みのテキストが消えてしまう
 - 各種記法の入力用ボタン実装
@@ -210,7 +210,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Future<void> _generatePdf() async {
+  Future<void> _generatePdf({bool isPrint = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -218,8 +218,8 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final bytes = _isFolderMode
-          ? await _generateFromFiles()
-          : await _generateFromText();
+          ? await _generateFromFiles(isPrint: isPrint)
+          : await _generateFromText(isPrint: isPrint);
       _downloadPdf(bytes);
     } catch (e) {
       setState(() => _errorMessage = 'エラーが発生しました: $e');
@@ -228,14 +228,18 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<List<int>> _generateFromText() async {
+  Future<List<int>> _generateFromText({bool isPrint = false}) async {
     final text = _controller.text.trim();
     if (text.isEmpty) throw Exception('テキストが空です');
     final novel = NovelContent(text, null);
-    return convertToPdf(novel, FlutterPdfRenderer());
+    return convertToPdf(novel, _makeRenderer(isPrint));
   }
 
-  Future<List<int>> _generateFromFiles() async {
+  FlutterPdfRenderer _makeRenderer(bool isPrint) => isPrint
+      ? FlutterPdfRenderer(leftMarginMm: 18, rightMarginMm: 7, isPrint: true)
+      : FlutterPdfRenderer();
+
+  Future<List<int>> _generateFromFiles({bool isPrint = false}) async {
     // .mdファイルをファイル名でソート
     final mdFiles = _droppedFiles.entries
         .where((e) => e.key.endsWith('.md') || e.key.endsWith('.txt'))
@@ -265,7 +269,7 @@ class _HomePageState extends State<HomePage> {
     };
 
     final novel = NovelContent(buffer.toString(), okuduke);
-    return convertToPdf(novel, FlutterPdfRenderer(), imageData: imageData);
+    return convertToPdf(novel, _makeRenderer(isPrint), imageData: imageData);
   }
 
   // UTF-8 / UTF-16 LE / UTF-16 BE に対応したテキストデコード
@@ -343,14 +347,27 @@ class _HomePageState extends State<HomePage> {
                 ],
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _generatePdf,
+                    onPressed: _isLoading ? null : () => _generatePdf(),
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('PDFつくーる'),
+                        : const Text('PDFつくーる（電子用）'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : () => _generatePdf(isPrint: true),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('PDFつくーる（印刷用）'),
                   ),
                 ),
               ],
