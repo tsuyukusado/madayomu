@@ -32,13 +32,16 @@ class PdfGenerator {
     required List<TocEntry> toc,
     required Map<String, int> headerPageMap,
     required bool isDryRun,
-    Map<String, pw.MemoryImage> imageCache = const {}, // 画像は外から渡す（プラットフォームごとに読み方が違うため）
+    Map<String, pw.MemoryImage> imageCache = const {},
+    Map<int, int>? widgetPageMap,
   }) async {
     final pdf = pw.Document();
 
     final sections = content.split('===page===')
         .where((s) => s.trim().isNotEmpty)
         .toList();
+
+    int globalWidgetIndex = 0;
 
     for (int sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
       final section = sections[sectionIndex];
@@ -101,7 +104,21 @@ class PdfGenerator {
                 },
               ));
             }
-            widgets.addAll(parser.parse(section));
+            final sectionWidgets = parser.parse(section);
+            final baseIndex = globalWidgetIndex;
+            globalWidgetIndex += sectionWidgets.length;
+            for (int i = 0; i < sectionWidgets.length; i++) {
+              if (isDryRun && isPrint && widgetPageMap != null) {
+                final idx = baseIndex + i;
+                widgets.add(PageRecorder(
+                  isAtomic: true,
+                  child: sectionWidgets[i],
+                  onPageRecorded: (page) => widgetPageMap[idx] = page,
+                ));
+              } else {
+                widgets.add(sectionWidgets[i]);
+              }
+            }
             return widgets;
           },
         ),
