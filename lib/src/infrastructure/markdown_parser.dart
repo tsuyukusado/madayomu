@@ -19,6 +19,8 @@ class MarkdownParser {
     required this.gothicTtf,
     required this.fontSize,
     required this.lineSpacing,
+    this.leftMarginMm = 12.5,  // 電子書籍: 12.5 / 印刷用内側: 20
+    this.rightMarginMm = 12.5, // 電子書籍: 12.5 / 印刷用外側: 5
     required this.imageCache,
     required this.toc,
     required this.headerPageMap,
@@ -30,6 +32,8 @@ class MarkdownParser {
   final pw.Font gothicTtf;
   final double fontSize;
   final double lineSpacing;
+  final double leftMarginMm;
+  final double rightMarginMm;
   final Map<String, pw.MemoryImage> imageCache;
   final List<TocEntry> toc;
   final Map<String, int> headerPageMap;
@@ -42,8 +46,11 @@ class MarkdownParser {
     String currentCodeLang = '';
     final codeBuffer = StringBuffer();
 
-    // 本文用の追加マージン（ページ設定のマージン10mm + 追加10mm = 合計20mmで、元の表示領域に合わせる）
-    final bodyMargin = pw.EdgeInsets.symmetric(horizontal: 12.5 * PdfPageFormat.mm);
+    // 本文用の追加マージン（PdfGeneratorのページマージンと同じ値を使用）
+    final bodyMargin = pw.EdgeInsets.only(
+      left: leftMarginMm * PdfPageFormat.mm,
+      right: rightMarginMm * PdfPageFormat.mm,
+    );
 
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];

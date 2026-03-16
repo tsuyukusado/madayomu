@@ -6,14 +6,19 @@ import 'markdown_parser.dart';
 import '../domain/models.dart';
 
 class PdfGenerator {
-  PdfGenerator(FontSet fonts)
-      : ttf = fonts.ttf,
+  PdfGenerator(
+    FontSet fonts, {
+    this.leftMarginMm = 12.5,  // 電子書籍: 12.5 / 印刷用内側: 20
+    this.rightMarginMm = 12.5, // 電子書籍: 12.5 / 印刷用外側: 5
+  })  : ttf = fonts.ttf,
         gothicTtf = fonts.gothicTtf,
         codeTtf = fonts.codeTtf;
 
   final pw.Font ttf;
   final pw.Font gothicTtf;
   final pw.Font codeTtf;
+  final double leftMarginMm;
+  final double rightMarginMm;
 
   static const fontSize = 9.0;
   static const lineSpacing = 4.0;
@@ -34,6 +39,8 @@ class PdfGenerator {
       gothicTtf: gothicTtf,
       fontSize: fontSize,
       lineSpacing: lineSpacing,
+      leftMarginMm: leftMarginMm,
+      rightMarginMm: rightMarginMm,
       imageCache: imageCache,
       toc: toc,
       headerPageMap: headerPageMap,
@@ -47,8 +54,7 @@ class PdfGenerator {
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a5,
-          // 余白を調整（上下15mm、左右10mm）して、ページ番号を端に寄せる
-          margin: pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 12.5 * PdfPageFormat.mm),
+          margin: pw.EdgeInsets.fromLTRB(leftMarginMm * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm, rightMarginMm * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm),
           theme: pw.ThemeData.withFont(base: ttf),
           footer: (context) {
             final pageNum = context.pageNumber;
@@ -71,7 +77,7 @@ class PdfGenerator {
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a5,
-          margin: pw.EdgeInsets.symmetric(vertical: 15.0 * PdfPageFormat.mm, horizontal: 12.5 * PdfPageFormat.mm),
+          margin: pw.EdgeInsets.fromLTRB(leftMarginMm * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm, rightMarginMm * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm),
           theme: pw.ThemeData.withFont(base: ttf),
           build: (context) {
             final widgets = parser.parse(okudukeContent, useFullWidth: false);
