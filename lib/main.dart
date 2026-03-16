@@ -394,7 +394,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildFileList() {
     final files = _droppedFiles.keys.toList()..sort();
-    final mdCount = files.where((f) => f.endsWith('.md')).length;
+    final mdCount = files.where((f) => f.endsWith('.md') || f.endsWith('.txt')).length;
     final imgCount = files.where((f) =>
         f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')).length;
 
