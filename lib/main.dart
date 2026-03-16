@@ -252,7 +252,7 @@ class _HomePageState extends State<HomePage> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('ダウンロード（電子用）'),
+                        : const Text('PDF生成（電子用）'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -271,12 +271,14 @@ class _HomePageState extends State<HomePage> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('ダウンロード（印刷用）'),
+                        : const Text('PDF生成（印刷用）'),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            _buildFormatButtons(),
+            const SizedBox(height: 8),
             if (_errorMessage != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -286,8 +288,89 @@ class _HomePageState extends State<HomePage> {
             Expanded(
               child: _isFolderMode ? _buildFileList() : _buildTextInput(),
             ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                icon: const Icon(Icons.help_outline),
+                onPressed: _showHelp,
+                tooltip: '使い方',
+              ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showHelp() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('使い方'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              _HelpSection('入力方法', [
+                '・テキストをコピペしてエリアに貼り付け',
+                '・.txt / .md ファイルをまとめたフォルダをドロップ',
+                '　└ 画像（.png / .jpg）を同じフォルダに入れると挿入可',
+                '　└ ファイル名の先頭を 01, 02... にすると順番通りに結合',
+              ]),
+              SizedBox(height: 12),
+              _HelpSection('記法', [
+                '｜漢字《よみ》　　ルビ',
+                '｜文字《圏》　　　圏点',
+                '**太字**　　　　　太字',
+                '===page===　　　ページ区切り',
+                '---　　　　　　　水平線',
+                '# index　　　　　目次（見出し自動収集）',
+                '## index　　　　 目次の本文',
+                '`コード`　　　　  インラインコード',
+                '```dart ... ```　コードブロック',
+              ]),
+              SizedBox(height: 12),
+              _HelpSection('ダウンロード', [
+                '電子用：余白均等、画面閲覧向け',
+                '印刷用：左右余白非対称、製本向け',
+              ]),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormatButtons() {
+    const buttons = [
+      '太字',
+      'ルビ',
+      '圏点',
+      '大見出し',
+      '小見出し',
+      '目次',
+      '改ページ',
+      '水平線',
+      '画像',
+      'インラインコード',
+      'コードブロック',
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final label in buttons) ...[
+            OutlinedButton(onPressed: null, child: Text(label)),
+            const SizedBox(width: 8),
+          ],
+        ],
       ),
     );
   }
@@ -373,6 +456,25 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HelpSection extends StatelessWidget {
+  final String title;
+  final List<String> items;
+
+  const _HelpSection(this.title, this.items);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        ...items.map((item) => Text(item, style: const TextStyle(fontSize: 13))),
+      ],
     );
   }
 }
