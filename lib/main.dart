@@ -401,7 +401,7 @@ class _HomePageState extends State<HomePage> {
       case '目次':          _insertBlock('# index\n## index', sel);
       case '改ページ':       _insertBlock('===page===', sel);
       case '水平線':         _insertBlock('---', sel);
-      case '画像':          _insertBlock('｜', sel);
+      case '画像':          _insertImage(sel);
       case 'インラインコード': _wrapInline('`', '`', sel);
       case 'コードブロック':  _insertCodeBlock(sel);
     }
@@ -481,6 +481,18 @@ class _HomePageState extends State<HomePage> {
     _controller.value = TextEditingValue(
       text: text.replaceRange(sel.start, sel.end, insert),
       selection: TextSelection.collapsed(offset: sel.start + insert.length),
+    );
+  }
+
+  void _insertImage(TextSelection sel) {
+    final text = _controller.text;
+    final pos = sel.isCollapsed ? sel.start : sel.end;
+    final needBefore = pos > 0 && text[pos - 1] != '\n';
+    final prefix = needBefore ? '\n' : '';
+    final insert = '$prefix｜\n｜\n｜\n';
+    _controller.value = TextEditingValue(
+      text: text.replaceRange(sel.start, sel.end, insert),
+      selection: TextSelection.collapsed(offset: sel.start + prefix.length + 1),
     );
   }
 
