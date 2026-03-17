@@ -108,7 +108,7 @@ class PdfGenerator {
                     onPageRecorded: (page) => widgetPageMap[idx] = page,
                   ));
                 } else {
-                  widgets.add(sectionWidgets[i]);
+                  widgets.add(NoSpanWidget(child: sectionWidgets[i]));
                 }
               }
               return widgets;

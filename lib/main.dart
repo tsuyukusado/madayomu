@@ -372,19 +372,16 @@ class _HomePageState extends State<HomePage> {
       'インラインコード',
       'コードブロック',
     ];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final label in buttons) ...[
-            OutlinedButton(
-              onPressed: _isFolderMode ? null : () => _applyFormat(label),
-              child: Text(label),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ],
-      ),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final label in buttons)
+          OutlinedButton(
+            onPressed: _isFolderMode ? null : () => _applyFormat(label),
+            child: Text(label),
+          ),
+      ],
     );
   }
 

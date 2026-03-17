@@ -1,5 +1,20 @@
 import 'package:pdf/widgets.dart' as pw;
 
+/// ページ跨ぎを禁止するラッパー。
+/// MultiPage でこのウィジェットが1ページに収まらない場合、丸ごと次ページに移動する。
+class NoSpanWidget extends pw.SingleChildWidget {
+  NoSpanWidget({required pw.Widget child}) : super(child: child);
+
+  @override
+  bool get canSpan => false;
+
+  @override
+  void paint(pw.Context context) {
+    super.paint(context);
+    paintChild(context);
+  }
+}
+
 class PageRecorder extends pw.SingleChildWidget {
   PageRecorder({
     required pw.Widget child,
