@@ -164,18 +164,13 @@ class _HomePageState extends State<HomePage> {
 
     if (mdFiles.isEmpty) throw Exception('.mdファイルが見つかりません');
 
-    // 本文と奥付を分けて結合
+    // 全ファイルを結合し、# okuduke セクションを奥付として抽出
     final buffer = StringBuffer();
-    String? okuduke;
     for (final f in mdFiles) {
-      final text = _decodeText(f.value);
-      if (f.key.contains('99_okuduke')) {
-        okuduke = text;
-      } else {
-        buffer.write(text);
-        buffer.writeln();
-      }
+      buffer.write(_decodeText(f.value));
+      buffer.writeln();
     }
+    final novel = extractOkuduke(buffer.toString());
 
     // 画像ファイルを抽出
     final imageData = {
@@ -184,7 +179,6 @@ class _HomePageState extends State<HomePage> {
           e.key: e.value,
     };
 
-    final novel = NovelContent(buffer.toString(), okuduke);
     return convertToPdf(novel, _makeRenderer(isPrint), imageData: imageData);
   }
 
