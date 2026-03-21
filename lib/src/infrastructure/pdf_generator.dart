@@ -46,7 +46,8 @@ class PdfGenerator {
 
     // 印刷用・本番ラン: ページ単位で余白・ページ番号位置を切り替える
     if (isPrint && !isDryRun && widgetPageMap != null) {
-      _generatePrintPages(pdf, sections, toc, headerPageMap, imageCache, widgetPageMap);
+      _generatePrintPages(pdf, sections, toc, headerPageMap, imageCache, widgetPageMap,
+        showMadayomuOnLastPage: okudukeContent == null);
     } else {
       // 電子用 or ドライラン: MultiPage でそのままレンダリング
       int globalWidgetIndex = 0;
@@ -76,13 +77,30 @@ class PdfGenerator {
             theme: pw.ThemeData.withFont(base: ttf),
             footer: (context) {
               final pageNum = context.pageNumber;
-              return pw.Container(
-                alignment: pw.Alignment.centerRight,
-                margin: const pw.EdgeInsets.only(top: 5.0),
-                child: pw.Text(
-                  '$pageNum',
-                  style: pw.TextStyle(font: ttf, fontSize: fontSize),
-                ),
+              final showMadayomu = okudukeContent == null &&
+                  sectionIndex == sections.length - 1 &&
+                  context.pageNumber == context.pagesCount;
+              return pw.Column(
+                mainAxisSize: pw.MainAxisSize.min,
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: [
+                  pw.Container(
+                    alignment: pw.Alignment.centerRight,
+                    margin: const pw.EdgeInsets.only(top: 5.0),
+                    child: pw.Text(
+                      '$pageNum',
+                      style: pw.TextStyle(font: ttf, fontSize: fontSize),
+                    ),
+                  ),
+                  if (showMadayomu)
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('This book was made with madayomu.', style: pw.TextStyle(font: ttf, fontSize: fontSize)),
+                        pw.Text('https://tsuyukusado.com/madayomu', style: pw.TextStyle(font: ttf, fontSize: fontSize)),
+                      ],
+                    ),
+                ],
               );
             },
             build: (context) {
@@ -141,13 +159,27 @@ class PdfGenerator {
           theme: pw.ThemeData.withFont(base: ttf),
           build: (context) {
             final widgets = okudukeParser.parse(okudukeContent, useFullWidth: false);
-            return pw.Container(
-              alignment: pw.Alignment.bottomRight,
-              child: pw.Column(
-                mainAxisSize: pw.MainAxisSize.min,
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: widgets,
-              ),
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                pw.Expanded(
+                  child: pw.Container(
+                    alignment: pw.Alignment.bottomRight,
+                    child: pw.Column(
+                      mainAxisSize: pw.MainAxisSize.min,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: widgets,
+                    ),
+                  ),
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('This book was made with madayomu.', style: pw.TextStyle(font: ttf, fontSize: fontSize)),
+                    pw.Text('https://tsuyukusado.com/madayomu', style: pw.TextStyle(font: ttf, fontSize: fontSize)),
+                  ],
+                ),
+              ],
             );
           },
         ),
@@ -166,8 +198,9 @@ class PdfGenerator {
     List<TocEntry> toc,
     Map<String, int> headerPageMap,
     Map<String, pw.MemoryImage> imageCache,
-    Map<int, int> widgetPageMap,
-  ) {
+    Map<int, int> widgetPageMap, {
+    bool showMadayomuOnLastPage = false,
+  }) {
     // 奇数・偶数それぞれのマージンでウィジェットをパースする
     // （左右合計は同じなのでテキスト幅・改行位置は変わらない）
     final oddWidgets = <int, pw.Widget>{}; // globalIdx → 奇数ページ用ウィジェット
@@ -215,6 +248,7 @@ class PdfGenerator {
       final right = isOdd ? rightMarginMm : leftMarginMm;
       final footerAlignment = isOdd ? pw.Alignment.centerRight : pw.Alignment.centerLeft;
       final widgets = pageGroups[pageNum]!;
+      final isLastPage = pageNum == pageNumbers.last;
 
       // フッター分だけ下マージンを縮小してコンテンツ高さをドライランと合わせる
       final bottomMarginPt = 15.0 * PdfPageFormat.mm - _footerHeightPt;
@@ -247,6 +281,14 @@ class PdfGenerator {
                     style: pw.TextStyle(font: ttf, fontSize: fontSize),
                   ),
                 ),
+                if (showMadayomuOnLastPage && isLastPage)
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('This book was made with madayomu.', style: pw.TextStyle(font: ttf, fontSize: fontSize)),
+                      pw.Text('https://tsuyukusado.com/madayomu', style: pw.TextStyle(font: ttf, fontSize: fontSize)),
+                    ],
+                  ),
               ],
             );
           },
