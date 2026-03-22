@@ -40,9 +40,7 @@ class PdfGenerator {
   }) async {
     final pdf = pw.Document();
 
-    final sections = content.split('===page===')
-        .where((s) => s.trim().isNotEmpty)
-        .toList();
+    final sections = splitByPageBreak(content);
 
     // 印刷用・本番ラン: ページ単位で余白・ページ番号位置を切り替える
     if (isPrint && !isDryRun && widgetPageMap != null) {
