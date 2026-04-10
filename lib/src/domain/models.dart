@@ -16,15 +16,15 @@ List<String> splitByPageBreak(String content) {
       inCodeBlock = !inCodeBlock;
       buffer.writeln(line);
     } else if (!inCodeBlock && line.trim() == '===page===') {
-      sections.add(buffer.toString());
+      sections.add(buffer.toString().trimRight());
       buffer.clear();
     } else {
       buffer.writeln(line);
     }
   }
-  if (buffer.isNotEmpty) sections.add(buffer.toString());
+  if (buffer.isNotEmpty) sections.add(buffer.toString().trimRight());
 
-  return sections.where((s) => s.trim().isNotEmpty).toList();
+  return sections.where((s) => s.isNotEmpty).toList();
 }
 
 // マージ済みテキストから # okuduke セクションを奥付として抽出する

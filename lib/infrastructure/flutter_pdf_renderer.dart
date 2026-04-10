@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../src/application/interfaces/i_pdf_renderer.dart';
@@ -13,11 +14,13 @@ class FlutterPdfRenderer implements IPdfRenderer {
     this.leftMarginMm = 12.5,  // 電子書籍: 12.5 / 印刷用内側: 20
     this.rightMarginMm = 12.5, // 電子書籍: 12.5 / 印刷用外側: 5
     this.isPrint = false,
+    this.pageFormat = PdfPageFormat.a5,
   });
 
   final double leftMarginMm;
   final double rightMarginMm;
   final bool isPrint;
+  final PdfPageFormat pageFormat;
 
   @override
   Future<List<int>> render(
@@ -32,7 +35,7 @@ class FlutterPdfRenderer implements IPdfRenderer {
     };
 
     final fonts = await _loadFontsFromAssets();
-    final generator = PdfGenerator(fonts, leftMarginMm: leftMarginMm, rightMarginMm: rightMarginMm, isPrint: isPrint);
+    final generator = PdfGenerator(fonts, leftMarginMm: leftMarginMm, rightMarginMm: rightMarginMm, isPrint: isPrint, pageFormat: pageFormat);
     final headerPageMap = <String, int>{};
 
     final widgetPageMap = isPrint ? <int, int>{} : null;

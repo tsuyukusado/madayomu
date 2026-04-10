@@ -12,6 +12,7 @@ class PdfGenerator {
     this.leftMarginMm = 12.5,  // 電子書籍: 12.5 / 印刷用内側: 20
     this.rightMarginMm = 12.5, // 電子書籍: 12.5 / 印刷用外側: 5
     this.isPrint = false,
+    this.pageFormat = PdfPageFormat.a5,
   })  : ttf = fonts.ttf,
         gothicTtf = fonts.gothicTtf,
         codeTtf = fonts.codeTtf;
@@ -22,6 +23,7 @@ class PdfGenerator {
   final double leftMarginMm;
   final double rightMarginMm;
   final bool isPrint;
+  final PdfPageFormat pageFormat;
 
   static const fontSize = 9.0;
   static const lineSpacing = 4.0;
@@ -43,8 +45,9 @@ class PdfGenerator {
     final sections = splitByPageBreak(content);
 
     // 印刷用・本番ラン: ページ単位で余白・ページ番号位置を切り替える
+    int lastContentPageNum = 0;
     if (isPrint && !isDryRun && widgetPageMap != null) {
-      _generatePrintPages(pdf, sections, toc, headerPageMap, imageCache, widgetPageMap,
+      lastContentPageNum = _generatePrintPages(pdf, sections, toc, headerPageMap, imageCache, widgetPageMap,
         showMadayomuOnLastPage: okudukeContent == null);
     } else {
       // 電子用 or ドライラン: MultiPage でそのままレンダリング
@@ -70,7 +73,7 @@ class PdfGenerator {
 
         pdf.addPage(
           pw.MultiPage(
-            pageFormat: PdfPageFormat.a5,
+            pageFormat: pageFormat,
             margin: pw.EdgeInsets.fromLTRB(leftMarginMm * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm, rightMarginMm * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm),
             theme: pw.ThemeData.withFont(base: ttf),
             footer: (context) {
@@ -136,15 +139,20 @@ class PdfGenerator {
 
     // 奥付ページの追加
     if (okudukeContent != null) {
-      // 奥付は最後のページ番号の奇偶に合わせる（印刷用でも奥付は固定レイアウト）
+      // 奥付ページは本文の最終ページの次のページになる。
+      // 印刷用の場合、そのページの奇偶に合わせて余白を切り替える。
+      final okudukePageNum = lastContentPageNum + 1;
+      final okudukeIsOdd = isPrint ? okudukePageNum.isOdd : true;
+      final okudukeLeft = okudukeIsOdd ? leftMarginMm : rightMarginMm;
+      final okudukeRight = okudukeIsOdd ? rightMarginMm : leftMarginMm;
       final okudukeParser = MarkdownParser(
         ttf: ttf,
         codeTtf: codeTtf,
         gothicTtf: gothicTtf,
         fontSize: fontSize,
         lineSpacing: lineSpacing,
-        leftMarginMm: leftMarginMm,
-        rightMarginMm: rightMarginMm,
+        leftMarginMm: okudukeLeft,
+        rightMarginMm: okudukeRight,
         imageCache: imageCache,
         toc: toc,
         headerPageMap: headerPageMap,
@@ -152,8 +160,8 @@ class PdfGenerator {
       );
       pdf.addPage(
         pw.Page(
-          pageFormat: PdfPageFormat.a5,
-          margin: pw.EdgeInsets.fromLTRB(leftMarginMm * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm, rightMarginMm * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm),
+          pageFormat: pageFormat,
+          margin: pw.EdgeInsets.fromLTRB(okudukeLeft * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm, okudukeRight * PdfPageFormat.mm, 15.0 * PdfPageFormat.mm),
           theme: pw.ThemeData.withFont(base: ttf),
           build: (context) {
             final widgets = okudukeParser.parse(okudukeContent, useFullWidth: false);
@@ -190,7 +198,8 @@ class PdfGenerator {
   /// 印刷用本番ラン: widgetPageMap を使いページ単位で pw.Page を生成する。
   /// 奇数ページ: 左マージン広(leftMarginMm)・右マージン狭(rightMarginMm)・ページ番号右下
   /// 偶数ページ: 左マージン狭(rightMarginMm)・右マージン広(leftMarginMm)・ページ番号左下
-  void _generatePrintPages(
+  /// 戻り値: 最後に追加した本文ページの番号（奥付ページの奇偶計算に使う）
+  int _generatePrintPages(
     pw.Document pdf,
     List<String> sections,
     List<TocEntry> toc,
@@ -240,6 +249,7 @@ class PdfGenerator {
 
     // ページ順に pw.Page を生成
     final pageNumbers = pageGroups.keys.toList()..sort();
+    if (pageNumbers.isEmpty) return 0;
     for (final pageNum in pageNumbers) {
       final isOdd = pageNum.isOdd;
       final left = isOdd ? leftMarginMm : rightMarginMm;
@@ -253,7 +263,7 @@ class PdfGenerator {
 
       pdf.addPage(
         pw.Page(
-          pageFormat: PdfPageFormat.a5,
+          pageFormat: pageFormat,
           margin: pw.EdgeInsets.fromLTRB(
             left * PdfPageFormat.mm,
             15.0 * PdfPageFormat.mm,
@@ -293,5 +303,6 @@ class PdfGenerator {
         ),
       );
     }
+    return pageNumbers.last;
   }
 }

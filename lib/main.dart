@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 
 import 'web_drop.dart';
 import 'infrastructure/flutter_pdf_renderer.dart';
+import 'package:pdf/pdf.dart';
+
 import 'src/application/converter.dart';
 import 'src/domain/models.dart';
 
@@ -246,6 +248,9 @@ void main() {
 執筆者；露草くれよん
 更新日：2026年3月22日''';
 
+  // ページサイズ（false = A5, true = B5）
+  bool _isB5 = false;
+
   // フォルダモード用
   bool _isFolderMode = false;
   Map<String, Uint8List> _droppedFiles = {};
@@ -348,9 +353,15 @@ void main() {
     return convertToPdf(novel, _makeRenderer(isPrint));
   }
 
-  FlutterPdfRenderer _makeRenderer(bool isPrint) => isPrint
-      ? FlutterPdfRenderer(leftMarginMm: 18, rightMarginMm: 7, isPrint: true)
-      : FlutterPdfRenderer();
+  FlutterPdfRenderer _makeRenderer(bool isPrint) {
+    // JIS B5: 182×257mm
+    final pageFormat = _isB5
+        ? const PdfPageFormat(182 * PdfPageFormat.mm, 257 * PdfPageFormat.mm)
+        : PdfPageFormat.a5;
+    return isPrint
+        ? FlutterPdfRenderer(leftMarginMm: 18, rightMarginMm: 7, isPrint: true, pageFormat: pageFormat)
+        : FlutterPdfRenderer(pageFormat: pageFormat);
+  }
 
   Future<List<int>> _generateFromFiles({bool isPrint = false}) async {
     // .mdファイルをファイル名でソート
@@ -473,6 +484,20 @@ void main() {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('PDF生成（印刷用）'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('A5')),
+                    ButtonSegment(value: true, label: Text('B5')),
+                  ],
+                  selected: {_isB5},
+                  onSelectionChanged: _isLoading
+                      ? null
+                      : (s) => setState(() => _isB5 = s.first),
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
                   ),
                 ),
               ],
